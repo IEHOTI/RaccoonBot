@@ -1,6 +1,6 @@
 #include "ldplayer.h"
 
-LDPlayer::LDPlayer(QObject* parent) : Emulator(parent) {cmd = L""; instance = 0;}
+LDPlayer::LDPlayer(QObject *parent) : Emulator(parent) {cmd = L""; instance = 0;}
 
 void LDPlayer::Start(bool *start){
     emit Logging("Путь эмулятора: " + QString::fromStdWString(cmd));
@@ -17,11 +17,11 @@ void LDPlayer::Start(bool *start){
     *start = true;
 }
 
-void LDPlayer::Stop(HWND* main) {
+void LDPlayer::Stop(HWND *main) {
     emit Logging("Закрываю эмулятор.");
     if(*main != NULL) {
-    PostMessage(*main,WM_CLOSE,0,0);//закрыть эмулятор
-    *main = 0;
+        PostMessage(*main,WM_CLOSE,0,0);//закрыть эмулятор
+        *main = 0;
     }
     emit Logging("Эмулятор закрыт.");
 }
@@ -36,12 +36,8 @@ void LDPlayer::Initialize(HWND *main) {
     GetWindowTextA(*main, name, sizeof(name));
     cmd.clear();
     cmd = sanitizePath(GetCommandLineForHWND(*main),type,instance);
-    if(type == typeEmu::ld_player){
-        cmd += L" launchex --index " + to_wstring(instance) + L" --packagename com.my.hc.rpg.kingdom.simulator"; // - why "-"?
-    }
-    if(type == typeEmu::memu_app) {
-        cmd += L" applink com.my.hc.rpg.kingdom.simulator";//??
-    }
+    if(type == typeEmu::ld_player) cmd += L" launchex --index " + to_wstring(instance) + L" --packagename com.my.hc.rpg.kingdom.simulator"; // - why "-"?
+    else if(type == typeEmu::memu_app) cmd += L" applink com.my.hc.rpg.kingdom.simulator";//??
 }
 
 LDPlayer &LDPlayer::operator =(const Emulator &other) {
@@ -56,22 +52,22 @@ LDPlayer &LDPlayer::operator =(const Emulator &other) {
 
 void LDPlayer::FixSize(HWND *main, HWND *game) {
     SetWindowPos(*main, HWND_BOTTOM, 1, 1, 900, 600+34, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
-    Sleep(1000);
+    Sleep(300);
     if (!SetWindowPos(*game, HWND_BOTTOM, 0, 34, 900, 600, SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED)) {
         emit Logging("Не удалось починить размер эмулятора. Попробуйте кнопку \"Починить всё\"");
         return;
     }
-    Sleep(500);
+    Sleep(300);
 }
 
 void LDPlayer::FixPos(HWND *main, HWND *game) {
     SetWindowPos(*main, HWND_BOTTOM, 1, 1, 900, 600+34, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
-    Sleep(1000);
+    Sleep(300);
     if (!SetWindowPos(*game, HWND_BOTTOM, 0, 34, 900, 600, SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED)) {
         emit Logging("Не удалось переместить окно эмулятора. Попробуйте кнопку \"Починить всё\"");
         return;
     }
-    Sleep(500);
+    Sleep(300);
 }
 
 void LDPlayer::FixAll(HWND *main, HWND *game) {
@@ -80,14 +76,14 @@ void LDPlayer::FixAll(HWND *main, HWND *game) {
     SetWindowLongPtr(*main, GWL_STYLE, style);
     ShowWindow(*main, SW_MINIMIZE);
     SetWindowPos(*main, HWND_BOTTOM, 1, 1, 1, 1, SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
-    Sleep(500);
+    Sleep(300);
     ShowWindow(*main, SW_SHOWNOACTIVATE);
     SetWindowPos(*main, HWND_BOTTOM, 1, 1, 900, 600+34, SWP_NOZORDER | SWP_NOACTIVATE| SWP_FRAMECHANGED);
-    Sleep(500);
+    Sleep(300);
     if (!SetWindowPos(*game, HWND_BOTTOM, 0, 34, 900, 600, SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED)) {
         emit Logging("Если не сработала кнопка полной починки, сверните окно, используя кнопку \" - \" справа сверху у эмулятора"
                      "или воспользуйтесь комбинацией клавиш Win + D, а затем нажмите кнопку ещё раз.");
         return;
     }
-    Sleep(500);
+    Sleep(300);
 }

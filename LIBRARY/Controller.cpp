@@ -1,20 +1,19 @@
 #include "Controller.h"
 
-Controller::Controller(QObject* parent) : QObject(parent) {
+Controller::Controller(QObject *parent) : QObject(parent) {
     m_main = 0;
     m_game = 0;
     m_rect = { 0,0,0,0 };
     mainPath = ":/pages";
 }
 
-void Controller::findObject(const Mat *finder, bool *result) {
-    emit errorLogging("===Поиск объекта===");
+void Controller::findObject(const Mat *finder, ErrorList *result) {
     if(finder != nullptr) finder->copyTo(m_mask);
-    m_error err(result);
-    connect(&err, &m_error::Logging, this, &Controller::LocalLogging);
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
     if (m_mask.empty()) {
-        err.errorMessage = "Ошибка поиска: Область не найдена.";
-        err.value = false;
+        observer.value.error = m_Error::EMPTY_IMG;
+        observer.comment = "findObject->mask";
         return;
     }
     // Преобразуем изображение в оттенки серого
@@ -29,34 +28,35 @@ void Controller::findObject(const Mat *finder, bool *result) {
     // Находим прямоугольник, описывающие контур
     m_rect = boundingRect(contours[0]);
     if (m_rect.width == 0 || m_rect.height == 0) {
-        err.errorMessage = "Ошибка поиска: Область распознана неправильно.";
-        err.value = false;
+        observer.value.warning = m_Warning::FAIL_CHECK;
+        observer.comment = "empty area of find";
         return;
     }
 }
 
-void Controller::compareObject(double rightVal, const Mat *object, const Mat *sample, bool *result) {
-    emit errorLogging("===Сравнение объектов===");
+void Controller::compareObject(double rightVal, const Mat *object, const Mat *sample, ErrorList *result) {
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
+
     Mat img1, sample1;
-    if (sample != nullptr) sample->copyTo(sample1);
-    else m_sample.copyTo(sample1);
+
     if (object != nullptr) object->copyTo(img1);
     else m_object.copyTo(img1);
-    m_error err(result);
-    connect(&err, &m_error::Logging, this, &Controller::LocalLogging);
     if (img1.empty()) {
-        err.errorMessage = "Ошибка сравнения объектов: img1.";
-        err.value = false;
+        observer.value.error = m_Error::EMPTY_IMG;
+        observer.comment = "compareObject->object && m_object";
         return;
     }
+    if (sample != nullptr) sample->copyTo(sample1);
+    else m_sample.copyTo(sample1);
     if (sample1.empty()) {
-        err.errorMessage = "Ошибка сравнения объектов: sample.";
-        err.value = false;
+        observer.value.error = m_Error::EMPTY_IMG;
+        observer.comment = "compareObject->sample && m_sample";
         return;
     }
+
     m_rect.x = 0;
     m_rect.y = 0;
-
     cvtColor(img1, img1, COLOR_BGR2GRAY);
     cvtColor(sample1, sample1, COLOR_BGR2GRAY);
 
@@ -72,56 +72,70 @@ void Controller::compareObject(double rightVal, const Mat *object, const Mat *sa
     double minVal = 0;
     Point minLoc;
     minMaxLoc(resultMat, &minVal, nullptr, &minLoc, nullptr);
-    emit errorLogging("matchTemplate: result - " + QString::number(minVal) + " and right value - " + QString::number(rightVal));
-    //потом логгер для этого отдельно добавлю...
+    emit errorLogging("==MatchTemplate: Result[" + QString::number(minVal) + "]; RightVal[" + QString::number(rightVal) + "]");
+
     // Проверка наилучшего совпадения
     if (minVal <= rightVal) {
         m_rect.x = minLoc.x;
         m_rect.y = minLoc.y;
         return;
     }
-    err.value = false;
+
+    observer.value.warning = m_Warning::FAIL_COMPARE;
+    observer.print = false;
     return;
 }
 
-void Controller::compareSample(const QString &pagePath, const QString &samplePath, const QString &maskPath, bool *result, bool shoot, double rightVal) {
-    emit errorLogging("===Поиск и сравнение===");
+void Controller::compareSample(const QString &pagePath, const QString &samplePath, const QString &maskPath, ErrorList *result, bool shoot, double rightVal) {
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
+
     if(shoot) Screenshot();
-    m_error err(result);
-    connect(&err, &m_error::Logging, this, &Controller::LocalLogging);
     if (m_object.empty()) {
-        err.errorMessage = "Пустой экран. Проверьте эмулятор.";
-        err.value = false;
+        observer.value.error = m_Error::NO_ACTIVE_EMULATOR;
         return;
     }
-    bool l_result = false;
+
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     //Нахождение координат обрезаемой области(findObject)
-    emit errorLogging("Convert: " + maskPath);
+    emit errorLogging("Converting mask: " + (pagePath + "/" + maskPath));
     convertImage(QImage((mainPath + "/" + pagePath + "/" + maskPath + ".png")), &m_mask,&l_result);
-    if(!l_result) {err.value = false;return;}
+    if(!l_result) {
+        observer.value = l_result;
+        observer.comment = "compareSample->convertImage->mask" + (mainPath + "/" + pagePath + "/" + maskPath + ".png");
+        return;
+    }
 
     findObject(nullptr,&l_result);
-    if(!l_result) {err.value = false;return;}
-
-    emit errorLogging("Convert: " + samplePath);
-    convertImage(QImage((mainPath + "/" + pagePath + "/" + samplePath + ".png")), &m_sample,&l_result);
-    if(!l_result) {err.value = false;return;}
-    if(m_object.empty()) {
-        err.errorMessage = "m_object empty";
-        err.value = false;
+    if(!l_result) {
+        observer.value = l_result;
+        observer.print = false;
         return;
     }
+    emit errorLogging("Converting sample: " + (pagePath + "/" + samplePath));
+    convertImage(QImage((mainPath + "/" + pagePath + "/" + samplePath + ".png")), &m_sample,&l_result);
+    if(!l_result) {
+        observer.value = l_result;
+        observer.comment = "compareSample->convertImage->sample" + (mainPath + "/" + pagePath + "/" + samplePath + ".png");
+        return;
+    }
+
     Mat img1 = m_sample(m_rect);
     compareObject(rightVal,&img1,&m_object,&l_result);
-    if(!l_result) {err.value = false;return;}
+    if(!l_result) {
+        observer.value = l_result;
+        observer.print = false;
+        return;
+    }
 }
 
-void Controller::saveImage(const QString &savePath, const Mat &saveImage, bool *result) {
-    m_error err(result);
-    connect(&err, &m_error::Logging, this, &Controller::LocalLogging);
+void Controller::saveImage(const QString &savePath, const Mat &saveImage, ErrorList *result) {
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
+
     if(!imwrite(savePath.toStdString(),saveImage)) {
-        err.errorMessage = "Ошибка сохранения изображения. Проверьте изображение или путь.";
-        err.value = false;
+        observer.value.error = m_Error::WRONG_IMG_PATH;
+        observer.comment = ("save image, path: " + savePath);
         return;
     }
 }
@@ -151,22 +165,21 @@ void Controller::Screenshot() {
     flip(res, m_object, 0);
 }
 
-void Controller::convertImage(const QImage &imageOne, Mat *imageTwo, bool *result) {
-    m_error err(result);
-    connect(&err, &m_error::Logging, this, &Controller::LocalLogging);
+void Controller::convertImage(const QImage &imageOne, Mat *imageTwo, ErrorList *result) {
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
     // Проверка входных данных
     if (imageOne.isNull()) {
-        err.errorMessage = "Пустое изображение на входе конвертации, проверьте путь.";
-        err.value = false;
+        observer.value.error = m_Error::WRONG_IMG_PATH;
+        observer.print = false;
         return;
     }
-
-    if (!imageTwo) {  // Проверка указателя
-        err.errorMessage = "Выходное изображение не инициализировано (nullptr).";
-        err.value = false;
+    // Проверка указателя
+    if (!imageTwo) {
+        observer.value.error = m_Error::EMPTY_IMG;
+        observer.print = false;
         return;
     }
-
     // Определяем формат QImage и конвертируем в соответствующий Mat
     Mat cvImg;
     switch (imageOne.format()) {
@@ -181,8 +194,8 @@ void Controller::convertImage(const QImage &imageOne, Mat *imageTwo, bool *resul
         cvImg = Mat(imageOne.height(), imageOne.width(), CV_8UC1, (void*)imageOne.bits(), imageOne.bytesPerLine());
         break;
     default:
-        err.errorMessage = "Неподдерживаемый формат QImage: " + QString::number(imageOne.format());
-        err.value = false;
+        observer.value.warning = m_Warning::UNKNOWN;
+        observer.comment = "unsupported format";
         return;
     }
     imageTwo->release();
@@ -198,120 +211,135 @@ Mat Controller::getMatObject() {
     return m_object;
 }
 
-void Controller::setMatObject(const Mat &image, bool *result) {
-    m_error err(result);
-    connect(&err, &m_error::Logging, this, &Controller::LocalLogging);
+void Controller::setMatObject(const Mat &image, ErrorList *result) {
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
 
     m_object.release();
     image.copyTo(m_object);
 
     if(m_object.empty()){
-        err.value = false;
-        err.errorMessage = "Ошибка установления объекта m_object";
+        observer.value.error = m_Error::EMPTY_IMG;
+        observer.comment = "setMatObject->Mat";
         return;
     }
 }
 
-void Controller::changeColor(const Mat &before, Mat *after, bool *result) {
-    emit errorLogging("===Смена цвета изображения===");
-    m_error err(result);
-    connect(&err, &m_error::Logging, this, &Controller::LocalLogging);
-
-    Mat temp;
-    before.copyTo(temp);
-
-    //почему? не знаю
-    // cvtColor(temp, temp, COLOR_RGB2BGR);
-    // cvtColor(temp, temp, COLOR_BGR2RGB);
-
-    // Определяем диапазоны цветов
-    Scalar lowerWhite(200, 200, 200); // Нижний предел для белого
-    Scalar upperWhite(255, 255, 255); // Верхний предел для белого
-
-    Scalar lowerBlackBlue(0, 0, 0); // Нижний предел для черного
-    Scalar upperBlackBlue(100, 100, 100); // Верхний предел для черного
-
-    Scalar lowerBlue(100, 150, 0); // Нижний предел для голубого
-    Scalar upperBlue(255, 255, 100); // Верхний предел для голубого
-
-    Scalar lowerNumberBlue(105, 95, 15); // Нижний предел для темно-синего
-    Scalar upperNumberBlue(165, 160, 130); // Верхний предел для темно-синего
-
-    // Цвета для замены
-    Vec3b dullGreen(144, 238, 144); // светло-зеленый
-    Vec3b white(255, 255, 255); // белый
-
-    // Проходим по каждому пикселю изображения
-    for (int y = 0; y < temp.rows; y++)
-    {
-        for (int x = 0; x < temp.cols; x++)
-        {
-            Vec3b pixel = temp.at<Vec3b>(y, x);
-            if (pixel[0] >= lowerWhite[0] && pixel[0] <= upperWhite[0] &&
-                pixel[1] >= lowerWhite[1] && pixel[1] <= upperWhite[1] &&
-                pixel[2] >= lowerWhite[2] && pixel[2] <= upperWhite[2])
-            {
-                temp.at<Vec3b>(y, x) = dullGreen;
-            }
-            else if ((pixel[0] >= lowerBlackBlue[0] && pixel[0] <= upperBlackBlue[0] &&
-                      pixel[1] >= lowerBlackBlue[1] && pixel[1] <= upperBlackBlue[1] &&
-                      pixel[2] >= lowerBlackBlue[2] && pixel[2] <= upperBlackBlue[2]) ||
-                     (pixel[0] >= lowerBlue[0] && pixel[0] <= upperBlue[0] &&
-                      pixel[1] >= lowerBlue[1] && pixel[1] <= upperBlue[1] &&
-                      pixel[2] >= lowerBlue[2] && pixel[2] <= upperBlue[2]) ||
-                     (pixel[0] >= lowerNumberBlue[0] && pixel[0] <= upperNumberBlue[0] &&
-                      pixel[1] >= lowerNumberBlue[1] && pixel[1] <= upperNumberBlue[1] &&
-                      pixel[2] >= lowerNumberBlue[2] && pixel[2] <= upperNumberBlue[2]))
-            {
-                // Заменяем черный или голубой на белый
-                temp.at<Vec3b>(y, x) = white;
-            }
-        }
+void Controller::changeColor(const Mat &before, Mat *after, ErrorList *result) {
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
+    if (before.empty()) {
+        observer.value.error = m_Error::EMPTY_IMG;
+        observer.comment = "before";
+        return;
     }
+    // Делаем копию, чтобы не трогать оригинал
+    cv::Mat temp = before.clone();
+    cv::cvtColor(temp, temp, cv::COLOR_RGB2BGR);
+
+    // Диапазоны (BGR!)
+    cv::Scalar lowerWhite(200, 200, 200);
+    cv::Scalar upperWhite(255, 255, 255);
+
+    cv::Scalar lowerBlackBlue(0, 0, 0);
+    cv::Scalar upperBlackBlue(100, 100, 100);
+
+    cv::Scalar lowerBlue(100, 150, 0);
+    cv::Scalar upperBlue(255, 255, 100);
+
+    cv::Scalar lowerNumberBlue(105, 95, 15);
+    cv::Scalar upperNumberBlue(165, 160, 130);
+
+    cv::Scalar lowerYellow(15,95,105);
+    cv::Scalar upperYellow(75,135,140);
+
+    // Цвета замены (BGR!)
+    cv::Scalar dullGreen(144, 238, 144);
+    cv::Scalar white(255, 255, 255);
+
+    cv::Mat mask;
+
+    // Белое → зеленое
+    cv::inRange(temp, lowerWhite, upperWhite, mask);
+    temp.setTo(dullGreen, mask);
+
+    // * → белое
+    cv::Mat mask1, mask2, mask3, mask4;
+    cv::inRange(temp, lowerBlackBlue, upperBlackBlue, mask1);
+    cv::inRange(temp, lowerBlue, upperBlue, mask2);
+    cv::inRange(temp, lowerNumberBlue, upperNumberBlue, mask3);
+    cv::inRange(temp, lowerYellow, upperYellow, mask4);
+
+    cv::bitwise_or(mask1, mask2, mask);
+
+    cv::bitwise_or(mask, mask3, mask);
+    cv::bitwise_or(mask, mask4, mask);
+
+    temp.setTo(white, mask);
+
     temp.copyTo(*after);
-    if(after->empty()) {
-        err.value = false;
-        err.errorMessage = "Ошибка конвертации цветов. Изображение пустое.";
+
+    if (after->empty()) {
+        observer.value.error = m_Error::EMPTY_IMG;
+        observer.comment = "after";
         return;
     }
 }
 
-void Controller::setSample(const Mat &sample, bool *result) {
-    m_error err(result);
-    connect(&err, &m_error::Logging, this, &Controller::LocalLogging);
+void Controller::setSample(const Mat &sample, ErrorList *result) {
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
+
     m_sample.release();
     sample.copyTo(m_sample);
+
     if(m_sample.empty()) {
-        err.value = false;
-        err.errorMessage = "Ошибка установления объекта m_sample";
+        observer.value.error = m_Error::EMPTY_IMG;
+        observer.comment = "setSample->mat";
         return;
     }
 }
 
-void Controller::setSample(const QString &sample, bool *result) {
+void Controller::setSample(const QString &sample, ErrorList *result) {
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
+
     m_sample.release();
     QString path = QDir::cleanPath(mainPath + "/" + sample + ".png");
     QImage image(path);
+    if(image.isNull()){
+        observer.value.error = m_Error::WRONG_IMG_PATH;
+        observer.comment = "setSample->path: " + path;
+        return;
+    }
     convertImage(image, &m_sample,result);
 }
 
-void Controller::setMask(const Mat &sample, bool *result) {
-    m_error err(result);
-    connect(&err, &m_error::Logging, this, &Controller::LocalLogging);
+void Controller::setMask(const Mat &mask, ErrorList *result) {
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
+
     m_mask.release();
-    sample.copyTo(m_mask);
+    mask.copyTo(m_mask);
     if(m_mask.empty()) {
-        err.value = false;
-        err.errorMessage = "Ошибка установления объекта m_mask";
+        observer.value.error = m_Error::EMPTY_IMG;
+        observer.comment = "setMask->mat";
         return;
     }
 }
 
-void Controller::setMask(const QString &mask, bool *result) {
+void Controller::setMask(const QString &mask, ErrorList *result) {
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
+
     m_mask.release();
     QString path = QDir::cleanPath(mainPath + "/" + mask + ".png");
-
     QImage image(path);
+    if(image.isNull()){
+        observer.value.error = m_Error::WRONG_IMG_PATH;
+        observer.comment = "setMask->path: " + path;
+        return;
+    }
     convertImage(image, &m_mask, result);
 }
 
@@ -319,49 +347,49 @@ Rect& Controller::getRect() {
     return m_rect;
 }
 
-void Controller::isEmpty(bool *result) {
-    m_error err(result);
-    connect(&err, &m_error::Logging, this, &Controller::LocalLogging);
+void Controller::isEmpty(ErrorList *result) {
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
 
     if(m_main == NULL || m_game == NULL) {
-        err.errorMessage = "Не удалось найти эмулятор.";
-        err.value = false;
+        observer.value.error = m_Error::NO_ACTIVE_EMULATOR;
         return;
     }
 }
 
-void Controller::isValidSize(bool *result) {
-    m_error err(result);
-    connect(&err, &m_error::Logging, this, &Controller::LocalLogging);
+void Controller::isValidSize(ErrorList *result) {
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
+
     RECT temp;
     int width,height;
     GetWindowRect(m_game,&temp);
     width = temp.right - temp.left;
     height = temp.bottom - temp.top;
     if(width != 900 || height != 600) {
-        err.value = false;
-        err.errorMessage = "Неправильные размеры эмулятора.";
+        observer.value.warning = m_Warning::WRONG_EMULATOR_SIZE;
         return;
     }
 }
 
-void Controller::isValidPos(bool *result) {
-    m_error err(result);
-    connect(&err, &m_error::Logging, this, &Controller::LocalLogging);
+void Controller::isValidPos(ErrorList *result) {
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
+
     RECT temp;
     GetWindowRect(m_game,&temp);
     if(temp.left != 1 || temp.top != 33) {
-        err.value = false;
-        err.errorMessage = "Неправильное положение эмулятора.";
+        observer.value.warning = m_Warning::WRONG_EMULATOR_POS;
         return;
     }
 }
 
-void Controller::click(bool *result, int count, int delay) {
-    emit errorLogging("===Клик=== [" + QString::number(m_rect.x) + ";" + QString::number(m_rect.y) + "]");
-    m_error err(result);
-    connect(&err, &m_error::Logging, this, &Controller::LocalLogging);
-    bool l_result = false;
+void Controller::click(ErrorList *result, int count, int delay) {
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
+
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
+    Screenshot();//??
     Mat before,after;
     m_object.copyTo(before);
     Rect click = m_rect;
@@ -377,25 +405,26 @@ void Controller::click(bool *result, int count, int delay) {
         PostMessage(m_game, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(click.x + 5, click.y + 5));
         Sleep(delay);
         PostMessage(m_game, WM_LBUTTONUP, 0, MAKELPARAM(click.x + 5, click.y + 5));
-        Sleep(200);
+        Sleep(100);
         Screenshot();
         m_object.copyTo(after);
-        compareObject(0.0001, &after,&before,&l_result);
-        if (l_result) Sleep(delay);
-        else return;
+        compareObject(0, &after, &before, &l_result);
+        if (!l_result) return;
+        Sleep(delay);
         x++;
     } while (x < count);
     //Если цикл вышел сюда, то значит что клики прошли а изображение не поменялось
-    err.value = false;
-    err.errorMessage = "Клик не был успешен. Проверьте параметры заново.";
+    observer.value.warning = m_Warning::FAIL_CLICK;
+    observer.comment = ("bot pos: " + QString::number(m_rect.x) + ";" + QString::number(m_rect.y) + "]");
     return;
 }
 
-void Controller::clickPosition(const Rect &point, bool *result, int count, int delay) {
-    emit errorLogging("===Клик по точке=== [" + QString::number(point.x) + ";" + QString::number(point.y) + "]");
-    m_error err(result);
-    connect(&err, &m_error::Logging, this, &Controller::LocalLogging);
-    bool l_result = false;
+void Controller::clickPosition(const Rect &point, ErrorList *result, int count, int delay) {
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
+
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
+    Screenshot();//??
     Mat before,after;
     m_object.copyTo(before);
     int x = 0;
@@ -410,26 +439,28 @@ void Controller::clickPosition(const Rect &point, bool *result, int count, int d
         PostMessage(m_game, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(point.x + 5, point.y + 5));
         Sleep(delay);
         PostMessage(m_game, WM_LBUTTONUP, 0, MAKELPARAM(point.x + 5, point.y + 5));
-        Sleep(200);
+        Sleep(100);
         Screenshot();
         m_object.copyTo(after);
-        compareObject(0.0001, &after,&before,&l_result);
-        if (l_result) {
-            Sleep(delay);
-        }
-        else return;
+        compareObject(0, &after, &before, &l_result);
+        if (!l_result) return;
+        Sleep(delay);
         x++;
     } while (x < count);
     //Если цикл вышел сюда, то значит что клики прошли а изображение не поменялось
-    err.value = false;
-    err.errorMessage = "Клик не был успешен. Проверьте параметры заново.";
+    observer.value.warning = m_Warning::FAIL_CLICK;
+    observer.comment = ("user pos: " + QString::number(m_rect.x) + ";" + QString::number(m_rect.y) + "]");
     return;
 }
 
-void Controller::clickSwipe(const Rect &start, const Rect &finish, bool *result) {
-    emit errorLogging("===Свайп===");
-    m_error err(result);
-    connect(&err, &m_error::Logging, this, &Controller::LocalLogging);
+void Controller::clickSwipe(const Rect &start, const Rect &finish, ErrorList *result) {
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
+
+    Screenshot();//??
+    Mat before,after;
+    m_object.copyTo(before);
 
     auto l_start = Vec2i(start.x, start.y);
     auto l_stop = Vec2i(finish.x, finish.y);
@@ -456,7 +487,7 @@ void Controller::clickSwipe(const Rect &start, const Rect &finish, bool *result)
 
     for (int i = 0; i < count; ++i)
     {
-        auto pos = Vec2i(path_dir * float(i));
+        auto pos = Vec2i(path_dir  *float(i));
         last_pos = l_start + pos;
 
         SetKeyboardState(arr);
@@ -464,18 +495,15 @@ void Controller::clickSwipe(const Rect &start, const Rect &finish, bool *result)
 
         const int pause = 50;
         const int offset = 15;
-        if (i < offset)
-        {
-            auto p = 10 + ((offset - (i + 1)) * pause) / offset;
+        if (i < offset) {
+            auto p = 10 + ((offset - (i + 1))  *pause) / offset;
             Sleep(p);
         }
-        else if (i > count - offset)
-        {
-            auto p = 30 + ((offset - (count - i)) * pause) / offset;
+        else if (i > count - offset) {
+            auto p = 30 + ((offset - (count - i))  *pause) / offset;
             Sleep(p);
         }
-        else if (i % 5 == 0)
-            Sleep(1);
+        else if (i % 5 == 0) Sleep(1);
     }
 
     PostMessage(m_game, WM_LBUTTONUP, 0, MAKELPARAM(last_pos[0], last_pos[1]));
@@ -485,32 +513,87 @@ void Controller::clickSwipe(const Rect &start, const Rect &finish, bool *result)
 
     arr[VK_LBUTTON] = old;
     SetKeyboardState(arr);
+
+    Screenshot();
+    m_object.copyTo(after);
+    compareObject(0, &after, &before, &l_result);
+    if (!l_result) return;
+    else {
+        observer.value.warning = m_Warning::FAIL_CLICK;
+        observer.comment = ("swipe start: " + QString::number(start.x) + ";" + QString::number(start.y) + "] swipe finish: " + QString::number(finish.x) + ";" + QString::number(finish.y) + "]");
+        return;
+    }
+
 }
 
-void Controller::clickButton(const QString &pagePath, const QString &buttonName, bool *result, int count, int delay) {
-    emit errorLogging("===Клик по кнопке=== : \"" + mainPath + "/" + pagePath + "/" + buttonName + ".png" + "\"");
-    m_error err(result);
-    connect(&err, &m_error::Logging, this, &Controller::LocalLogging);
+void Controller::clickButton(const QString &pagePath, const QString &buttonName, ErrorList *result, int count, int delay) {
+    emit errorLogging("=Клик по кнопке:\"" + mainPath + "/" + pagePath + "/" + buttonName + ".png" + "\"");
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
 
     m_mask.release();
-    convertImage(QImage((mainPath + "/" + pagePath + "/" + buttonName + ".png")), &m_mask,result);
-    if(result != nullptr && *result == false) return;
-    findObject(nullptr,result);
-    if(result != nullptr && *result == false) return;
-    //experimental поле арены
-    // Mat temp = m_object(m_rect);
-    // bool l_result = false;
-    // compareObject(0.02,&temp,nullptr,&l_result);
-    // if(l_result)
-    //
+    convertImage(QImage((mainPath + "/" + pagePath + "/" + buttonName + ".png")), &m_mask,&l_result);
+    if(!l_result){
+        observer.value = l_result;
+        observer.comment = "convert->mask";
+        return;
+    }
+    findObject(nullptr,&l_result);
+    if(!l_result){
+        observer.value = l_result;
+        observer.print = false;
+        return;
+    }
     click(result,count,delay);
 }
+void Controller::clickMapButton(const QString &mapName, const QString &buttonName, ErrorList *result, int count, int delay) {
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
 
-void Controller::clickEsc(bool *result) {
-    emit errorLogging("===Клик Esc===");
-    m_error err(result);
-    connect(&err, &m_error::Logging, this, &Controller::LocalLogging);
-    bool l_result = false;
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
+    checkMap(&l_result);
+    if(!l_result){
+        observer.value = l_result;
+        observer.print = false;
+        return;
+    }
+    int x = 0;
+    Rect start = {690,290,0,0};
+    Rect finish = {100,290,0,0};
+    while (x < 2){//right swipe
+        compareSample("map",mapName,buttonName,&l_result,true);
+        if(!l_result) {
+            clickSwipe(start,finish);
+            x++;
+        }
+        else break;
+    }
+    if(!l_result) {//left swipe
+        x = 0;
+        while(x < 4){
+            compareSample("map",mapName,buttonName,&l_result,true);
+            if(!l_result) {
+                clickSwipe(finish,start);
+                x++;
+            }
+            else break;
+        }
+    }
+    if(!l_result) {
+        observer.value.warning = m_Warning::FAIL_PAGE;
+        observer.comment = "Cant find " + buttonName;
+        return;
+    }
+    else click(result,count,delay);
+}
+
+void Controller::clickEsc(ErrorList *result) {
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
+
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
+    Screenshot();
     Mat before,after;
     m_object.copyTo(before);
     SendMessage(m_main, WM_SETFOCUS, 0, 0);
@@ -525,19 +608,20 @@ void Controller::clickEsc(bool *result) {
     Sleep(500);
     Screenshot();
     m_object.copyTo(after);
-    compareObject(0.0001, &after,&before,&l_result);
+    compareObject(0, &after,&before,&l_result);
     if(!l_result) return;
     //Если цикл вышел сюда, то значит что клики прошли а изображение не поменялось
-    err.value = false;
-    err.errorMessage = "ESC не был успешен.";
+    observer.value.warning = m_Warning::FAIL_CLICK;
+    observer.comment = "Esc";
     return;
 }
 
-void Controller::clickReturn(bool *result) {
-    emit errorLogging("===Клик Return===");
-    m_error err(result);
-    connect(&err, &m_error::Logging, this, &Controller::LocalLogging);
-    bool l_result = false;
+void Controller::clickReturn(ErrorList *result) {
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
+
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
+    Screenshot();
     Mat before,after;
     m_object.copyTo(before);
     SendMessage(m_main, WM_SETFOCUS, 0, 0);
@@ -555,67 +639,79 @@ void Controller::clickReturn(bool *result) {
     compareObject(0.0001, &after,&before,&l_result);
     if(!l_result) return;
     //Если цикл вышел сюда, то значит что клики прошли а изображение не поменялось
-    err.value = false;
-    err.errorMessage = "RETURN не был успешен.";
+    observer.value.warning = m_Warning::FAIL_CLICK;
+    observer.comment = "Return-Enter";
     return;
 }
 
-//void Controller::Initialize(userProfile *user, bool *result){}
+//void Controller::Initialize(userProfile *user, ErrorList *result){}
 
-void Controller::userInitialize(userProfile *user, bool *result) {
-    emit Logging("Инициализация пользователя");
-    m_error err(result);
-    connect(&err, &m_error::Logging, this, &Controller::LocalLogging);
-    bool l_result = false;
+void Controller::userInitialize(userProfile *user, ErrorList *result) {
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
+
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     clickButton("main","button_user",&l_result,3);
     if(!l_result) {
-        err.value = false;
-        err.errorMessage = "Проблема с нажатием на кнопку.";
+        observer.value = l_result;
+        observer.print = false;
         return;
     }
     int x = 0;
-    do{
+    do {
         compareSample("user","sample","compare",&l_result,true);
-        if(l_result) break;
-        x++;
-        Sleep(1000);
+        if(!l_result) {
+            x++;
+            Sleep(1000);
+        }
+        else break;
     } while(x < 10);
     if(!l_result) {
-        err.value = false;
-        err.errorMessage = "Не найден профиль.";
+        observer.value.error = m_Error::FAIL_INIT;
+        observer.comment = "dont open user profile";
         return;
     }
     setMask("user/user_id",&l_result);
     if(!l_result) {
-        err.value = false;
-        err.errorMessage = "Ошибка пути маски user/user_id";
+        observer.value = l_result;
+        observer.print = false;
         return;
     }
     findObject(nullptr,&l_result);
-    if(!l_result) return;
-    emit Recognize(cutImage(),user->user_ID);
-    emit errorLogging(QString::number(user->user_ID));
-    if(user->user_ID <=0) {
-        err.value = false;
-        err.errorMessage = "Ошибка распознавания айди.";
+    if(!l_result) {
+        observer.value = l_result;
+        observer.print = false;
         return;
     }
+    emit Recognize(cutImage(),user->user_ID);
+    if(user->user_ID <= 0) {
+        observer.value.error = m_Error::FAIL_INIT;
+        observer.comment = "scan user_id";
+        return;
+    }
+    //////
     user->subscribe = typeSub::admin;
+
+    //////
     setMask("user/user_power",&l_result);
     if(!l_result) {
-        err.value = false;
-        err.errorMessage = "Ошибка пути маски user/user_power";
+        observer.value = l_result;
+        observer.print = false;
         return;
     }
     findObject(nullptr,&l_result);
-    if(!l_result) return;
-    emit Recognize(cutImage(),user->history_power);
-        emit errorLogging(QString::number(user->history_power));
-    if(user->history_power <=0) {
-        err.value = false;
-        err.errorMessage = "Ошибка распознавания айди.";
+    if(!l_result) {
+        observer.value = l_result;
+        observer.print = false;
         return;
     }
+    emit Recognize(cutImage(),user->history_power);
+    if(user->history_power <= 0) {
+        observer.value.error = m_Error::FAIL_INIT;
+        observer.comment = "scan user_power";
+        return;
+    }
+    //////
     user->state_premium = true;
     user->state_ads = false;
     user->count_units = 6;//потом сделать адекватное распознавание после получения инфы о подписке, условно
@@ -641,27 +737,27 @@ void Controller::setMainPath(const QString &path) {
     mainPath = path;
 }
 
-void Controller::Start(userProfile *user, bool *result) {
+void Controller::Start(userProfile *user, ErrorList *result) {
     emit Logging("Бот запущен");
-    m_error err(result);
-    connect(&err, &m_error::Logging, this, &Controller::LocalLogging);
-    bool l_result = false;
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     if(!FindEmulator(user->emulator_name,&m_main,&m_game)) {
-        err.value = false;
-        err.errorMessage = "Произошла ошибка в обнаружении эмулятора.";
+        observer.value.error = m_Error::FAIL_INIT;
+        observer.comment = "find emulator";
         return;
     }
     char name[256];
     GetClassNameA(m_main, name, sizeof(name));
     if (strcmp(name, "LDPlayerMainFrame") == 0) {
         user->emulatorType = typeEmu::ld_player;
-        Emulator* emulator = new LDPlayer(this);
+        Emulator *emulator = new LDPlayer(this);
         emulator->Initialize(&m_main);
         emit emulatorCreated(emulator);
     }
     else {
-        err.value = false;
-        err.errorMessage = "Ошибка распознавания типа эмулятора.";
+        observer.value.error = m_Error::FAIL_INIT;
+        observer.comment = "recognize emulator type";
         return;
     }
     do{
@@ -670,8 +766,8 @@ void Controller::Start(userProfile *user, bool *result) {
         if(!l_result){
             fixGameError(&l_result);
             if(!l_result){
-                err.value = false;
-                err.errorMessage = "Не обнаружена главная страница.";
+                observer.value.error = m_Error::FAIL_INIT;
+                observer.comment = "find mainPage";
                 return;
             }
         }
@@ -681,16 +777,16 @@ void Controller::Start(userProfile *user, bool *result) {
         if(!l_result){
             fixGameError(&l_result);
             if(!l_result){
-                err.value = false;
-                err.errorMessage = "Беда у настроек игры.";
+                observer.value.error = m_Error::FAIL_INIT;
+                observer.comment = "find settings";
                 return;
             }
         }
     }while(!l_result);
     userInitialize(user,&l_result);
     if(!l_result) {
-        err.value = false;
-        err.errorMessage = "Проблема с обнаружением профиля игрока.";
+        observer.value.error = m_Error::FAIL_INIT;
+        observer.print = false;
         return;
     }
     //refreshMainPage(&l_result); // poka chto
@@ -703,12 +799,13 @@ void Controller::Start(userProfile *user, bool *result) {
     emit endStart();
 }
 
-void Controller::Stop(bool *result) {
-    m_error err(result);
-    connect(&err, &m_error::Logging, this, &Controller::LocalLogging);
+void Controller::Stop(ErrorList *result) {
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
+    ///
     if(m_main == NULL) {
-        err.value = false;
-        err.errorMessage = "Попытка закрыть несуществующий эмулятор.";
+        observer.value.error = m_Error::NO_ACTIVE_EMULATOR;
+        observer.comment = "m_main null";
         return;
     }
     PostMessage(m_main,WM_CLOSE,0,0);
@@ -722,32 +819,33 @@ void Controller::LocalLogging(const QString &msg) {
 }
 
 void Controller::checkLoading() {
-    bool l_result = false;
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     do{
         compareSample("load","sample","compare",&l_result,true);
-        if(l_result) Sleep(1000);
-    } while(l_result);
-    Sleep(1000);
+        if(!l_result) break;
+        else Sleep(1000);
+    } while(true);
+    Sleep(500);
 }
 
 void Controller::checkGameLoading() {
-    emit errorLogging("===Проверяю загрузку===");
-    bool l_result = false;
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     do {
         compareSample("load","sample_open","compare_open",&l_result,true);
-        if(l_result) Sleep(1000);
-    } while(l_result);
+        if(!l_result) break;
+        else Sleep(1000);
+    } while(true);
     do {
         compareSample("load","sample_logo","compare_logo",&l_result,true);
-        if(l_result) Sleep(1000);
-    } while(l_result);
+        if(!l_result) break;
+        else Sleep(1000);
+    } while(true);
     checkLoading();
 }
 
 void Controller::checkPreMainPage() {
-    emit errorLogging("===Проверка предзагрузки главной страницы===");
     checkGameLoading();
-    bool l_result = false;
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     checkEvent(&l_result);
     if(l_result) skipEvent();
     compareSample("load", "sample_mail", "compare_mail", &l_result,true);
@@ -779,41 +877,39 @@ void Controller::checkPreMainPage() {
         }
     } while(l_result);
 }
-
-void Controller::checkMainPage(bool *result) {
+///////////
+void Controller::checkMainPage(ErrorList *result) {
     Sleep(500);
-    emit errorLogging("===Проверка главной страницы===");
-    m_error err(result);
-    connect(&err, &m_error::Logging, this, &Controller::LocalLogging);
-    bool l_result = false;
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     compareSample("main","sample","compare",&l_result,true);
     if(!l_result){
         emit errorLogging("Первая проверка провалена.");
         compareSample("main","sample","compare_1",&l_result,true);
         if(!l_result){
-            err.value = false;
-            err.errorMessage = "Главная страница не найдена. Ошибка на 2-х этапной проверке.";
+            observer.value.error = m_Error::FAIL_INIT;
+            observer.comment = "fail 2x check main page";
             return;
         }
     }
 }
 
-void Controller::checkEvent(bool *result) {
-    m_error err(result);
-    connect(&err, &m_error::Logging, this, &Controller::LocalLogging);
-    emit errorLogging("===Проверка ивента===");
+void Controller::checkEvent(ErrorList *result) {
+    //if(!event) return;
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
     int x = 0;
-    bool l_result = false;
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     setMask("event/compare",&l_result);
     if(!l_result) {
-        err.value = false;
-        err.errorMessage = "Ошибка установления маски event/compare";
+        observer.value = l_result;
         return;
     }
     convertImage(QImage((mainPath + "/event/sample.png")), &m_object,&l_result);
     if(!l_result) {
-        err.value = false;
-        err.errorMessage = "Ошибка установления изображения event/sample";
+        observer.value = l_result;
+        observer.comment = "wrong convert - /event/sample.png";
         return;
     }
     findObject();
@@ -828,20 +924,21 @@ void Controller::checkEvent(bool *result) {
         }
     } while(x < 2);
     if(x == 2) {
-        err.value = false;
+        observer.value.warning = m_Warning::NO_EVENT;
+        observer.print = false;
         return;
     }
 }
 
-void Controller::checkSettings(bool *result) {
-    emit errorLogging("===Проверка настроек===");
-    bool l_result = false;
-    m_error err(result);
-    connect(&err, &m_error::Logging, this, &Controller::LocalLogging);
+void Controller::checkSettings(ErrorList *result) {
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
+
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     clickButton("main","button_settings",&l_result);
     if(!l_result) {
-        err.value = false;
-        err.errorMessage = "Кнопка настроек не была нажата";
+        observer.value = l_result;
+        observer.print = false;
         return;
     }
     int x = 0;
@@ -853,105 +950,104 @@ void Controller::checkSettings(bool *result) {
             Sleep(500);
         }
     } while(x < 10);
-    if(x == 10) {
-        err.value = false;
-        err.errorMessage = "Настройки не найдены.";
+    if(!l_result) {
+        observer.value = l_result;
+        observer.print = false;
         return;
     }
     compareSample("settings","sample","state_fps",&l_result);
     if(!l_result) clickButton("settings","button_fps",&l_result);
     if(!l_result) {
-        err.value = false;
-        err.errorMessage = "Не удалось нажать на кнопку FPS.";
+        observer.value = l_result;
+        observer.print = false;
         return;
     }
     compareSample("settings","sample","state_lang",&l_result);
     if(!l_result) {
         clickButton("settings","button_lang",&l_result);
-        Sleep(1000);
         if(!l_result) {
-            err.value = false;
-            err.errorMessage = "Не удалось нажать на кнопку lang.";
+            observer.value = l_result;
+            observer.print = false;
             return;
         }
+        Sleep(1000);
         compareSample("settings","sample_change_lang","compare_change_lang",&l_result,true);
         if(!l_result){
-            err.value = false;
-            err.errorMessage = "Не удалось найти окно смены языка.";
+            observer.value = l_result;
+            observer.print = false;
             return;
         }
         clickButton("settings","button_en",&l_result);
         if(!l_result) {
-            err.value = false;
-            err.errorMessage = "Не удалось нажать на кнопку lang|en.";
+            observer.value = l_result;
+            observer.print = false;
             return;
         }
         compareSample("settings","sample_confirm","compare_confirm",&l_result,true);
         if(!l_result){
-            err.value = false;
-            err.errorMessage = "Не удалось найти окно подтверждения смены языка.";
+            observer.value = l_result;
+            observer.print = false;
             return;
         }
         clickButton("settings","button_yes",&l_result);
         if(!l_result) {
-            err.value = false;
-            err.errorMessage = "Не удалось нажать на кнопку смены языка.";
+            observer.value = l_result;
+            observer.print = false;
             return;
         }
     } else clickEsc();
 }
 
-void Controller::refreshMainPage(bool *result) {
-    emit errorLogging("===Обновление главной страницы===");
-    m_error err(result);
-    connect(&err, &m_error::Logging, this, &Controller::LocalLogging);
-    bool l_result = false;
-    checkMainPage(&l_result);
-    if(!l_result) {
-        err.value = false;
-        err.errorMessage = "Ошибка: не на главное странице.";
-        return;
-    }
-    clickButton("main","button_friends",&l_result);
-    if(!l_result){
-        err.value = false;
-        err.errorMessage = "Ошибка: не удалось нажать на кнопку друзей.";
-        return;
-    }
-    int x = 0;
-    do {
-        compareSample("top_players","sample","compare",&l_result,true);
-        if(l_result) break;
-        else {
-            x++;
-            Sleep(500);
-        }
-    } while(x < 100);
-    if(x == 100) {
-        err.value = false;
-        err.errorMessage = "Ошибка: не прогрузился список топ-игроков.";
-        return;
-    }
-    Sleep(500);//?
-    clickPosition(Rect(480,200,0,0));
-    Sleep(500);
-    clickPosition(Rect(480,200,0,0));
-    do {
-        compareSample("top_players","sample_top","compare_top",&l_result,true);
-        Sleep(500);
-    } while(l_result);
-    clickEsc();
-    checkMainPage(&l_result);
-    if(!l_result){
-        err.value = false;
-        err.errorMessage = "Ошибка сброса положения экрана.";
-        return;
-    }
+void Controller::refreshMainPage(ErrorList *result) {
+    // emit errorLogging("===Обновление главной страницы===");
+    // m_error err(result);
+    // connect(&err, &m_Error::Logging, this, &Controller::LocalLogging);
+    // ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
+    // checkMainPage(&l_result);
+    // if(!l_result) {
+    //     err.value = false;
+    //     err.errorMessage = "Ошибка: не на главное странице.";
+    //     return;
+    // }
+    // clickButton("main","button_friends",&l_result);
+    // if(!l_result){
+    //     err.value = false;
+    //     err.errorMessage = "Ошибка: не удалось нажать на кнопку друзей.";
+    //     return;
+    // }
+    // int x = 0;
+    // do {
+    //     compareSample("top_players","sample","compare",&l_result,true);
+    //     if(l_result) break;
+    //     else {
+    //         x++;
+    //         Sleep(500);
+    //     }
+    // } while(x < 100);
+    // if(x == 100) {
+    //     err.value = false;
+    //     err.errorMessage = "Ошибка: не прогрузился список топ-игроков.";
+    //     return;
+    // }
+    // Sleep(500);//?
+    // clickPosition(Rect(480,200,0,0));
+    // Sleep(500);
+    // clickPosition(Rect(480,200,0,0));
+    // do {
+    //     compareSample("top_players","sample_top","compare_top",&l_result,true);
+    //     Sleep(500);
+    // } while(l_result);
+    // clickEsc();
+    // checkMainPage(&l_result);
+    // if(!l_result){
+    //     err.value = false;
+    //     err.errorMessage = "Ошибка сброса положения экрана.";
+    //     return;
+    // }
 }
 
 void Controller::skipEvent() {
-    emit errorLogging("===Пропуск ивентовых наград===");
-    bool l_result = false;
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     do {
         checkEvent(&l_result);
         if(l_result) {
@@ -961,46 +1057,38 @@ void Controller::skipEvent() {
     } while(l_result);
 }
 
-void Controller::checkMap(bool *result) {
-    emit errorLogging("Проверка карты");
-    m_error err(result);
-    connect(&err, &m_error::Logging, this, &Controller::LocalLogging);
-    bool l_result = false;
+void Controller::checkMap(ErrorList *result) {
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     int x = 0;
-    while(x < 5){
+    do {
         compareSample("map","sample","compare",&l_result,true);
-        if(!l_result){
-            compareSample("map","sample_right","compare_right",&l_result);
-            if(l_result) {
-                do {
-                    clickSwipe({100,100,0,0},{200,100,0,0},&l_result);
-                    compareSample("map","sample","compare",&l_result,true);
-                } while(!l_result);
-                return;
-            }
-            else x++;
+        if(!l_result) {
+            x++;
+            Sleep(1000);
         }
         else return;
-        Sleep(1000);
-    }
-    err.value = false;
+    } while (x < 15);
+    observer.value.warning = m_Warning::FAIL_CHECK;
+    observer.comment = "map";
     return;
 }
 
-void Controller::fixPopUpError(bool *result){
+void Controller::fixPopUpError(ErrorList *result){
     emit errorLogging("===Фикс всплывающих окон===");
-    m_error err(result);
-    connect(&err, &m_error::Logging, this, &Controller::LocalLogging);
-    bool l_result = false;
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     QList<QString> temp;
     temp << "device" << "sleep" << "daily" ;
     for(int i = 0; i < temp.size(); i++){
         compareSample("warnings/general","sample_"+temp[i],"compare_"+temp[i],&l_result,true);
         if(l_result){
-            clickButton("warnings/general","button_"+temp[i],&l_result,2);
+            clickButton("warnings/general","button_" + temp[i],&l_result,2);
             if(!l_result){
-                err.value = false;
-                err.errorMessage = "Не удалось нажать на кнопку закрытия всплывающего окна:" + temp[i];
+                observer.value = l_result;
+                observer.print = false;
                 return;
             }
             compareSample("load","sample","compare",&l_result,true);
@@ -1019,11 +1107,12 @@ void Controller::fixPopUpError(bool *result){
     }
 }
 
-void Controller::fixGameError(bool *result) {
+void Controller::fixGameError(ErrorList *result) {
+    if(result && *result) return;
     emit errorLogging("===Фикс полный===");
-    m_error err(result);
-    connect(&err, &m_error::Logging, this, &Controller::LocalLogging);
-    bool l_result = false;
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     fixPopUpError(&l_result);
     if(l_result) return;
     //тут будет проверка и фикс всплывающей фигни "ваш замок уязвим" if(l_result) return;
@@ -1039,8 +1128,8 @@ void Controller::fixGameError(bool *result) {
     return;
 }
 
-void Controller::findBarracks(bool *result) {}
+void Controller::findBarracks(ErrorList *result) {}
 
-void Controller::entryBarracks(bool *result) {}
+void Controller::entryBarracks(ErrorList *result) {}
 
-void Controller::scanSquadCount(userProfile *user, bool *result) {}
+void Controller::scanSquadCount(userProfile *user, ErrorList *result) {}

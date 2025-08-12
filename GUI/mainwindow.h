@@ -50,63 +50,48 @@ public:
 
     //tab
     void createGUI();
-    void createLoggerTab(QWidget* tab, int index);
+    void createLoggerTab(QWidget *tab, int index);
 
     //main
-    void createMainTab(QWidget* tab, int index);
+    void createMainTab(QWidget *tab, int index);
     void getSettings(int index);
 
     //general
-    void createGeneralTab(QWidget* tab, int index);
+    void createGeneralTab(QWidget *tab, int index);
     void readSettings(QString &path, QListWidget *widget);
 
     //cathedral
-    void createCathedralTab(QWidget* tab, int index);
+    void createCathedralTab(QWidget *tab, int index);
 
     //arena
     void createArenaTab(QWidget *tab, int index);
 signals:
-    void startCathedral(bool *result = nullptr); // НЕ НУЖЕН?
     //tab
 
     //main
     void saveTaskQueue(); // main->general
     void startBot();
-    void startController(userProfile* user,bool* result = nullptr);
+    void startController(userProfile *user, ErrorList *result = nullptr);
     //general
 
     //arena
-    void initArena(TaskSettings *setting, bool *result = nullptr);
+    void initArena(TaskSettings *setting, ErrorList *result = nullptr);
     void getArenaSettings();
 
     //cathedral
-    void initCathedral(TaskSettings *setting, bool *result = nullptr);
+    void initCathedral(TaskSettings *setting, ErrorList *result = nullptr);
     void getCathedralSettings();//signal from [=]slot on page
 private:
-    QWidget* mainWidget;
+    QWidget *mainWidget;
     QList<QString> nameTasks;
-    // QList<Task*> listTasks;
 
     QTabWidget *tabWidget;
-    //QVector<QTextEdit*> userLoggers;
-
-    // userProfile *user;
-    // Emulator *emulator;
-    // QWidget *accountInfo;
-    // Controller *controller;
-    // QTextEdit *errorLog;
-    // Ocr *ocr;
 
     QList<QThread*> botThreads;
     QList<QSharedPointer<GeneralData>> listData;
     QList<QTextEdit*> listErrorLogs;
     QHash<QString,int> hashTask;
     QSharedPointer<GeneralData> tempData;
-
-    //CathedralSettings *cathedralSettings;
-    //Task *cathedral;
-
-    //QThread *controllerThread;
 };
 
 

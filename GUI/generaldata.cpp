@@ -11,24 +11,38 @@ GeneralData::~GeneralData() {
 }
 
 void GeneralData::executeTasks(){
-    int i = 0;
     connect(controller,&Controller::SuccessFix,this,[this,&i](){
-        i--;
+        currentTask--;
     });
-    //connect(this, &MainWindow::startCathedral, cathedral, &Cathedral::Start, Qt::QueuedConnection); - НЕ НУЖЕН?
-    bool result = false;
+    ErrorList result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     while(true) {
-        result = false;
-        for(int n = listTaskQueue.size(); i < n; i++) {
-            int curIndex = hashTasks[listTaskQueue[i]];
+        currentTask = 0;
+        for(int n = listTaskQueue.size(); currentTask < n; currentTask++) {
+            QMetaObject::Connection stopConnection;
+            stopConnection = connect(this, &GeneralData::stopTask, this, [=]() {
+                listTasks[curIndex]->Stop();
+            },Qt::QueuedConnection);
+            int curIndex = hashTasks[listTaskQueue[currentTask]];
             listTasks[curIndex]->Start(&result);
             if(!result) {
-                controller->Logging("Задание " + listTaskQueue[i] + " провалено.");
-                break;
+                if(result.error == m_Error::STOP_TASK) {
+                    controller->Logging("Задание " + listTaskQueue[currentTask] + " остановлено.");
+                    currentTask = -1;
+                    return;
+                }
+                else if(result.error == m_Error::PAUSE_TASK){
+                    controller->Logging("Задание " + listTaskQueue[currentTask] + " на паузе.");
+                    i--;
+                }
+                else {
+                    controller->Logging("Задание " + listTaskQueue[currentTask] + " провалено.");
+                    currentTask = -1;
+                    return;
+                }
+            } else {
+                disconnect(stopConnection);
             }
         }
-        if(!result) break;
-        i = 0;
     }
 }
 

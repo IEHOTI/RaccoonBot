@@ -7,12 +7,12 @@
 class BOTLIB_EXPORT LDPlayer : public Emulator
 {
 public:
-    explicit LDPlayer(QObject* parent = nullptr);
+    explicit LDPlayer(QObject *parent = nullptr);
     void Start(bool *start) override;
     void Stop(HWND *main) override;
     void Initialize(HWND *main) override;
 
-    LDPlayer& operator=(const Emulator &other);
+    LDPlayer &operator=(const Emulator &other);
 
     void FixSize(HWND *main, HWND *game) override;
     void FixPos(HWND *main, HWND *game) override;

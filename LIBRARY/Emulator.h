@@ -8,18 +8,18 @@
 class BOTLIB_EXPORT Emulator : public QObject{
     Q_OBJECT
 public:
-    explicit Emulator(QObject* parent = nullptr) : QObject(parent) {}  // Добавьте параметр parent
+    explicit Emulator(QObject *parent = nullptr) : QObject(parent) {}  // Добавьте параметр parent
     virtual ~Emulator() = default;
-    virtual void Start(bool* start) = 0; // запуск эмулятора
-    virtual void Stop(HWND* main) = 0;
-    virtual void Initialize(HWND* main) = 0; // main обязан быть непустым
+    virtual void Start(bool *start) = 0; // запуск эмулятора
+    virtual void Stop(HWND *main) = 0;
+    virtual void Initialize(HWND *main) = 0; // main обязан быть непустым
 
-    virtual void FixSize(HWND* main, HWND* game) = 0; // для каждого эмулятора свои цифры-фиксеры
-    virtual void FixPos(HWND* main, HWND* game) = 0;
-    virtual void FixAll(HWND* main, HWND* game) = 0;
+    virtual void FixSize(HWND *main, HWND *game) = 0; // для каждого эмулятора свои цифры-фиксеры
+    virtual void FixPos(HWND *main, HWND *game) = 0;
+    virtual void FixAll(HWND *main, HWND *game) = 0;
 
 signals:
-    void Logging(const QString& msg);
+    void Logging(const QString &msg);
 
 protected:
     wstring cmd;

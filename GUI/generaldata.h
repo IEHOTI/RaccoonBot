@@ -7,7 +7,7 @@
 #include "TaskSettings.h"
 #include "Task.h"
 #include "Structs.h"
-#include <Ocr.h>
+#include "Ocr.h"
 
 struct GeneralData : public QObject
 {
@@ -20,7 +20,7 @@ public:
     void saveEmulator(Emulator* emulator);
     void executeTasks();
 signals:
-
+    void stopTask();
 public:
     QList<Task*> listTasks;
     QList<TaskSettings*> listSettings; //[*] - любая уникалка. порядок заданий определяется и хранится в хеше
@@ -31,6 +31,7 @@ public:
     Controller *controller;
     Ocr *ocr;
     QWidget *accountInfo;
+    int currentTask = -1;
 };
 
 #endif // GENERALDATA_H

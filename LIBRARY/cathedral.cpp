@@ -10,19 +10,19 @@ Cathedral::Cathedral(Controller *g_controller, QObject* parent)  : Task(parent) 
 }
 Cathedral::~Cathedral() {}
 
-void Cathedral::Initialize(TaskSettings *setting, bool *result) {
+void Cathedral::Initialize(TaskSettings *setting, ErrorList *result) {
     emit controller->Logging("Инициализация настроек собора.");
-    m_error err(result);
-    connect(&err, &m_error::Logging, controller, &Controller::LocalLogging);
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, controller, &Controller::LocalLogging);
     if (!setting) {
-        err.value = false;
-        err.errorMessage = "Передан нулевой указатель на настройки.";
+        observer.value.error = m_Error::FAIL_INIT;
+        observer.comment = "settings nullptr";
         return;
     }
     if(auto* cathedral = dynamic_cast<CathedralSettings*>(setting)) settings = cathedral;
     else {
-        err.value = false;
-        err.errorMessage = "Неправильный тип настроек подан на вход.";
+        observer.value.error = m_Error::FAIL_INIT;
+        observer.comment = "wrong type: cathedral -> unknown";
         emit controller->Logging("Произошла ошибка. Отправьте отчёт об ошибке.");
         settings = nullptr;
     }
@@ -34,71 +34,79 @@ void Cathedral::Stop() {
     controller->errorLogging("Остановка задания [Собор].");
 }
 
-void Cathedral::Start(bool *result) {
+void Cathedral::Start(ErrorList *result) {
     emit controller->Logging("Задание [Собор] начато.");
-    m_error err(result);
-    connect(&err, &m_error::Logging, controller, &Controller::LocalLogging);
-    bool l_result = false;
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, controller, &Controller::LocalLogging);
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     controller->checkMainPage(&l_result);
     if(!l_result){
         controller->fixGameError(&l_result);
         if(!l_result){
-            err.value = false;
-            err.errorMessage = "Фиг знает где мы. Вызывайте чинилыча.";
+            observer.value = l_result;
+            observer.print = false;
             return;
         }
     }
     controller->clickButton("main","button_map");
     controller->checkMap(&l_result);
     if(!l_result){
-        err.value = false;
-        err.errorMessage = "Карта не открылась.";
+        observer.value = l_result;
+        observer.print = false;
         return;
     }
-    controller->clickButton("map","button_dark");
+    controller->clickMapButton("sample","button_dark",&l_result);
+    if(!l_result){
+        observer.value = l_result;
+        observer.print = false;
+        return;
+    }
     int k = 0;
     stop_flag = false;
     while(!stop_flag) {
         currentStage = 0;
-        checkStage();
+        checkMain(&l_result);
+        if(!l_result){
+            observer.value = l_result;
+            observer.print = false;
+        }
         if(currentStage == 0) {
             checkSettings(&l_result);
             if(l_result) {
                 controller->clickButton("dark","button_start");
                 confirmSquad(&l_result);
                 if(!l_result){
-                    err.value = false;
-                    err.errorMessage = "Произошла какая-то ошибка в момент подтверждения отряда.";
+                    observer.value = l_result;
+                    observer.print = false;
                     return;
                 }
             }
             else {
-                err.value = false;
-                controller->Logging("Задание прервано. Ошибка в настройках");
+                observer.value = l_result;
+                observer.print = false;
+                emit controller->Logging("Задание прервано. Ошибка в настройках");
                 return;
             }
             checkStage(&l_result);
             if(!l_result){
-                err.value = false;
-                err.errorMessage = "Этаж не обнаружен";
+                observer.value = l_result;
+                observer.print = false;
                 return;
             }
         }
         if(settings->fullGamePass) fullGamePass(&l_result);
         else bossGamePass(&l_result);
-        Sleep(1000);
-        do {
-            controller->compareSample("dark","sample_end","compare_end",&l_result,true);
-        } while(!l_result);
+        do controller->compareSample("dark","sample_end","compare_end",&l_result,true);
+        while(!l_result);
         do {
             controller->compareSample("dark","sample_end","compare_end",&l_result,true);
             if(l_result) {
-                controller->clickButton("dark","button_end",nullptr,2);
-                Sleep(500);
+                controller->clickButton("dark","button_end");
+                Sleep(200);
             }
         } while(l_result);
         controller->checkLoading();
-        Sleep(500);
+        Sleep(200);
         controller->checkEvent(&l_result);
         if(l_result) controller->skipEvent();
         k++;
@@ -109,53 +117,51 @@ void Cathedral::Start(bool *result) {
     if(!l_result){
         controller->checkMap(&l_result);
         if(!l_result) {
-            err.value = false;
-            err.errorMessage = "Неизветсное местонахождение";
+            observer.value = l_result;
+            observer.print = false;
             return;
         }
         controller->clickButton("map","button_close");
     }
 }
 
-void Cathedral::checkPower(const Mat &object, bool *result) {
-    emit controller->errorLogging("Проверка мощи");
-    m_error err(result);
-    connect(&err, &m_error::Logging, controller, &Controller::LocalLogging);
+void Cathedral::checkPower(const Mat &object, ErrorList *result) {
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, controller, &Controller::LocalLogging);
     Mat l_object;
-    bool l_result = false;
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     controller->changeColor(object,&l_object,&l_result);
     if(!l_result) {
-        err.value = false;
+        observer.value = l_result;
+        observer.print = false;
         return;
     }
     int power = 0;
     emit controller->Recognize(l_object,power);
     if(power <= 0) {
-        err.value = false;
-        err.errorMessage = "Не удалось распознать мощь: " + QString::number(power);
-        imshow("1",l_object);
+        observer.value.warning = m_Warning::FAIL_RECOGNIZE;
+        controller->clickButton("battle/dark","button_best",&l_result);
         return;
     }
     if(power > settings->history_power) {
         controller->clickSwipe({468,194,0,0},{467,394,0,0},&l_result);
         if(!l_result) {
-            err.value = false;
-            err.errorMessage = "Возможное повышение ИМ, запрет атаки";
+            observer.value.warning = m_Warning::MORE_THAN_HISTORY_POWER;
+            observer.comment = QString::number(power) + " vs " + QString::number(settings->history_power);
             return;
         }
     }
     return;
 }
 
-void Cathedral::confirmSquad(bool *result) {
-    emit controller->errorLogging("Утверждение отряда");
-    m_error err(result);
-    connect(&err, &m_error::Logging, controller, &Controller::LocalLogging);
-    bool l_result = false;
-    while(!l_result) {
+void Cathedral::confirmSquad(ErrorList *result) {
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, controller, &Controller::LocalLogging);
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
+    do {
         controller->compareSample("squad/dark","sample","compare",&l_result,true);
-        if(!l_result) Sleep(1000);
-    }
+        if(!l_result) Sleep(500);
+    } while(!l_result);
     switch (settings->modeSquad) {
         case 0: {
             controller->clickButton("squad/dark","button_best",&l_result,2);
@@ -169,38 +175,70 @@ void Cathedral::confirmSquad(bool *result) {
             break;
         }
         default:{
-            err.value = false;
-            err.errorMessage = "Неправильная настройка.";
+            observer.value.error = m_Error::FAIL_INIT;
+            observer.comment = "squad mode";
             return;
         }
     }
     controller->clickButton("squad/dark","button_start",&l_result,2);
-    checkWarnings(&l_result);
+    checkWarnings();
+    Sleep(1000);
+    controller->compareSample("load","sample","compare",&l_result,true);
     if(!l_result) {
-        Sleep(1000);
-        controller->compareSample("load","sample","compare",&l_result,true);
-        if(!l_result) {
-            err.value = false;
-            err.errorMessage = "Не удалось начать собор.";
-            return;
-        }
+        observer.value = l_result;
+        observer.print = false;
+        emit controller->Logging("Не удалось начать собор. Отправьте сообщение об ошибке.");
+        return;
     }
 }
 
-void Cathedral::checkStage(bool *result) {
+void Cathedral::checkMain(ErrorList *result){
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, controller, &Controller::LocalLogging);
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
+    int x = 0;
+    while(x<15){
+        controller->compareSample("load","sample","compare",&l_result,true);
+        if(l_result){
+            checkStage(&l_result);
+            if(currentStage == 0){
+                observer.value = l_result;
+                observer.print = false;
+            }
+            return;
+        }
+        else {
+            controller->compareSample("dark","sample","compare",&l_result,true);
+            if(l_result) return;
+            else {
+                Sleep(1000);
+                x++;
+            }
+        }
+    }
+    observer.value.warning = m_Warning::FAIL_PAGE;
+    observer.comment = "cathedral main";
+    return;
+}
+
+void Cathedral::checkStage(ErrorList *result) {
     if (currentStage <= 0 && currentStage >= 4) return;
-    emit controller->errorLogging("Проверка этажа");
-    m_error err(result);
-    connect(&err, &m_error::Logging, controller, &Controller::LocalLogging);
-    bool l_result = false;
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, controller, &Controller::LocalLogging);
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     int x = 0;
     while(x < 3) {
         controller->checkLoading();
+
+        controller->compareSample("dark/waypoints","sample_complete","compare_complete",&l_result,true,0.01);
+        if(l_result) controller->clickButton("dark/waypoints","button_close");
+
         controller->compareSample("dark/waypoints/blessing","sample","compare",&l_result,true);
         if(l_result) {
             controller->clickButton("dark/waypoints/blessing","button" + QString::number(1 + rand() % 3));
             controller->clickButton("dark/waypoints/blessing","button_confirm");
         }
+
         controller->Screenshot();
         for(int i = 0; i < 3; i++) {
             controller->compareSample("dark/waypoints","stage_" + QString::number(i+1),
@@ -212,119 +250,133 @@ void Cathedral::checkStage(bool *result) {
         }
         x++;
     }
-    err.value = false;
-    err.errorMessage = "Любой этаж собора не был найден";
+    observer.value = l_result;
+    observer.comment = "Cathderal floor";
     return;
 }
 
-void Cathedral::checkSettings(bool *result) {
-    emit controller->errorLogging("Проверка настроек");
-    m_error err(result);
-    connect(&err, &m_error::Logging, controller, &Controller::LocalLogging);
-    bool l_result = false;
+void Cathedral::checkSettings(ErrorList *result) {
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, controller, &Controller::LocalLogging);
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     if(settings->history_power < 1) {
-        err.value = false;
-        err.errorMessage = "Неправильные настройки. ИМ < 1";
+        observer.value.error = m_Error::FAIL_INIT;
+        observer.comment = "history_power < 1";
         return;
     }
     switch(settings->modeDifficult) {
     case 0:{
-        controller->compareSample("dark","sample","state_normal",&l_result,true);
-        if(!l_result) controller->clickButton("dark","button_normal");
+        controller->compareSample("dark","sample_insane","state_normal",&l_result,true);
+        if(!l_result) {
+            controller->click(&l_result);
+            if(!l_result){
+                observer.value = l_result;
+                observer.print = false;
+                return;
+            }
+        }
         break;
     }
     case 1:{
-        controller->compareSample("dark","sample","state_hard",&l_result,true);
-        if(!l_result) controller->clickButton("dark","button_hard");
+        controller->compareSample("dark","sample_insane","state_hard",&l_result,true);
+        if(!l_result) {
+            controller->click(&l_result);
+            if(!l_result){
+                observer.value = l_result;
+                observer.print = false;
+                return;
+            }
+        }
         break;
     }
     case 2:{
-        controller->compareSample("dark","sample","state_insane",&l_result,true);
-        if(!l_result) controller->clickButton("dark","button_insane");
+        controller->compareSample("dark","sample_hard","state_insane",&l_result,true);
+        if(!l_result) {
+            controller->click(&l_result);
+            if(!l_result){
+                observer.value = l_result;
+                observer.print = false;
+                return;
+            }
+        }
         break;
     }
     default:{
-        err.value = false;
-        err.errorMessage = "Неправильные настройки сложности";
+        observer.value.error = m_Error::FAIL_INIT;
+        observer.comment = "settings->difficult";
         return;
     }
     }
     switch(settings->modeKey) {
     case 0:{
-        controller->compareSample("dark","sample","state_apples",&l_result);
-        if(!l_result) controller->clickButton("dark","button_apples");
+        controller->clickButton("dark","button_apples");
         break;
     }
     case 1:{
-        controller->compareSample("dark","sample","state_keys",&l_result);
-        if(!l_result) controller->clickButton("dark","button_keys");
+        controller->clickButton("dark","button_keys");
         break;
     }
     case 2://{пока что не работает}
     case 3://туда же
     default:{
-        err.value = false;
-        err.errorMessage = "Неправильные настройки расходников";
+        observer.value.error = m_Error::FAIL_INIT;
+        observer.comment = "settings->key";
         return;
     }
     }
 }
 
-void Cathedral::checkWarnings(bool *result) {
-    emit controller->errorLogging("Проверка варнингов");
-    m_error err(result);
-    connect(&err, &m_error::Logging, controller, &Controller::LocalLogging);
-    bool l_result = false;
+void Cathedral::checkWarnings() {
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     int x = 0;
-    while(x < 4) {
+    while(x < 6) {
         controller->compareSample("warnings/dark","sample_1","compare",&l_result,true,0.01);
         if(!l_result){
             controller->compareSample("warnings/dark","sample_2","compare",&l_result,false,0.01);
             if(!l_result) {
                 x++;
-                Sleep(500);
+                Sleep(200);
                 continue;
             }
         }
         controller->clickButton("warnings/dark","button_yes");
         return;
     }
-    err.value = false;
-    err.errorMessage = "Ошибка распознавания варнинга";
-    return;
 }
 
-void Cathedral::findWaypoint(bool *result) {
-    emit controller->errorLogging("===Поиск точки===");
-    m_error err(result);
-    connect(&err, &m_error::Logging, controller, &Controller::LocalLogging);
-    bool l_result = false;
+void Cathedral::findWaypoint(ErrorList *result) {
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, controller, &Controller::LocalLogging);
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     int x = 0;
-    while(x<3) {
-        Sleep(500);
+    while(x<5) {
+        Sleep(200);
         controller->Screenshot();
         controller->setSample(controller->getMatObject(),&l_result);
         if(!l_result) {
-            err.value = false;
+            observer.value = l_result;
+            observer.print = false;
             return;
         }
         for(int i = 0; i < 7; i++) {
             Mat l_object;
             controller->convertImage(QImage((localPath + "/dark/map/sample_" + QString::number(i) + ".png")), &l_object,&l_result);
             if(!l_result) {
-                err.value = false;
-                err.errorMessage = "Конвертация " + (localPath + "/dark/map/sample_ " + QString::number(i) + ".png") + " failed";
+                observer.value = l_result;
+                observer.print = false;
                 return;
             }
             controller->setMatObject(l_object,&l_result);
             if(!l_result) {
-                err.value = false;
+                observer.value = l_result;
+                observer.print = false;
                 return;
             }
             controller->setMask("dark/map/find_" + QString::number(i));
             controller->findObject(nullptr,&l_result);
             if(!l_result){
-                err.value = false;
+                observer.value = l_result;
+                observer.print = false;
                 return;
             }
             Mat temp = controller->cutImage();
@@ -333,86 +385,74 @@ void Cathedral::findWaypoint(bool *result) {
         }
         x++;
     }
-    // controller->compareSample("dark/waypoints","sample_next","state_next",&l_result,true);
-    // if(l_result){
-    //     controller->clickButton("dark/waypoints","button_next",&l_result);
-    //     checkWarnings(&l_result);
-    //     err.value = false;
-    //     return;
-    // }
-    // controller->compareSample("dark/waypoints","sample_end","state_end",&l_result);
-    // if(l_result) {
-    //     controller->clickButton("dark/waypoints","button_end",&l_result);
-    //     checkWarnings(&l_result);
-    //     currentStage = 4;
-    //     err.value = false;
-    //     return;
-    // }
     checkEndStage(&l_result);
-    err.value = false;
-    if(l_result){
-        err.errorMessage = "Не удалось найти точку для атаки или кнопки переходов.";
+    if(!l_result){
+        observer.value = l_result;
+        observer.print = false;
         return;
     }
 }
 
-void Cathedral::checkEndStage(bool *result){
-    emit controller->errorLogging("Проверка прохождения этажа");
-    m_error err(result);
-    connect(&err, &m_error::Logging, controller, &Controller::LocalLogging);
-    bool l_result = false;
+void Cathedral::checkEndStage(ErrorList *result){
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, controller, &Controller::LocalLogging);
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     controller->compareSample("dark/waypoints","sample_next","state_next",&l_result,true);
     if(l_result){
         controller->clickButton("dark/waypoints","button_next",&l_result);
-        checkWarnings(&l_result);
-        err.value = false;
+        if(!l_result){
+            observer.value = l_result;
+            observer.print = false;
+            return;
+        }
+        checkWarnings();
         return;
     }
     controller->compareSample("dark/waypoints","sample_end","state_end",&l_result);
     if(l_result) {
         controller->clickButton("dark/waypoints","button_end",&l_result);
-        checkWarnings(&l_result);
+        if(!l_result){
+            observer.value = l_result;
+            observer.print = false;
+            return;
+        }
+        checkWarnings();
         currentStage = 4;
-        err.value = false;
         return;
     }
 }
 
-void Cathedral::checkWaypoints(int &type, bool *result) {
-    emit controller->errorLogging("Распозонавание точки");
-    m_error err(result);
-    connect(&err, &m_error::Logging, controller, &Controller::LocalLogging);
-    bool l_result = false;
+void Cathedral::checkWaypoints(int &type, ErrorList *result) {
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, controller, &Controller::LocalLogging);
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     int x = 0;
     while (x < 10){
-        emit controller->errorLogging("check waypoint: battle/dark");
         controller->compareSample("battle/dark","sample","compare",&l_result,true); // для баттла 0.04? вроде как 0.006 хватает
         if(l_result) {
             type = 4;
             return;
         }
         for(int i = 0; i < 4; i++){
-            emit controller->errorLogging("check waypoint: dark/waypoints/" + nameWaypoints.at(i));
             controller->compareSample("dark/waypoints/" + nameWaypoints.at(i),"sample","compare",&l_result); // 0.065??
             if(l_result){
                 type = i;
                 return;
             }
         }
-        Sleep(500);
+        Sleep(200);
         x++;
     }
-    err.value = false;
-    err.errorMessage = "Не удалось понять что за точка открыта.";
+    observer.value = l_result;
+    observer.comment = "check waypoint";
     type = -1;
     return;
 }
 
-void Cathedral::attackWaypoints(int type, bool *result) {
-    emit controller->errorLogging("Распознавание точки");
-    m_error err(result);
-    connect(&err, &m_error::Logging, controller, &Controller::LocalLogging);
-    bool l_result = false;
+void Cathedral::attackWaypoints(int type, ErrorList *result, bool *battle) {
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, controller, &Controller::LocalLogging);
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     switch (type) {
     case 0: {//altar
         controller->clickButton("dark/waypoints/" + nameWaypoints.at(type),"button_move");
@@ -435,47 +475,55 @@ void Cathedral::attackWaypoints(int type, bool *result) {
         break;
     }
     case 4: {//battle
-        controller->clickButton("battle/dark","button_best",&l_result,2);
         int x = 0;
-        if(!l_result) {
-            err.value = false;
-            return;
-        }
-        do{
-            Sleep(1000);
+        do {
             controller->Screenshot();
             controller->setMask("battle/dark/state_power",&l_result);
             if(!l_result) {
-                err.value = false;
+                observer.value = l_result;
+                observer.print = false;
                 return;
             }
             controller->findObject();
             checkPower(controller->cutImage(),&l_result);
-            if(!l_result) x++;
+            if(!l_result) {
+                x++;
+                Sleep(500);
+            }
             else x = 3;
         } while(x < 3);
+        if(!l_result) {
+            observer.value = l_result;
+            observer.print = false;
+            return;
+        }
         x = 0;
-        l_result = false;
         if(settings->premiumStatus){
-            while (!l_result) controller->clickButton("battle/dark","button_qstart",&l_result);
-            checkWarnings(&l_result);
-            Sleep(500);
-            while(x<10){
-                controller->checkEvent(&l_result);
-                if(l_result) controller->skipEvent();
-                controller->compareSample("battle/end/quick","sample","compare",&l_result,true,0.025);
-                if(!l_result) x++;
-                else {
-                    controller->clickEsc();
-                    Sleep(500);
-                    break;
-                }
-            }
-            if(x == 10){
-                err.value = false;
-                err.errorMessage = "Не загрузились итоги битвы.";
-                return;
-            }
+            do{
+                controller->clickButton("battle/dark","button_qstart",&l_result);
+                if(l_result) break;
+            }while(true);
+            checkWarnings();
+            checkBattleResult(battle);
+            // while(x < 30){
+            //     controller->compareSample("battle/end/quick","sample","compare",&l_result,true,0.025);
+            //     if(!l_result) break;
+            //     else {
+            //         x++;
+            //         Sleep(1000);
+            //     }
+            // }
+            // if(x == 30){
+            //     observer.value = l_result;
+            //     observer.comment = "end battle";
+            //     return;
+            // }
+            // controller->clickEsc();
+            // ////?? надо ли, по-моему убрали их после битвы
+            // controller->checkEvent(&l_result);
+            // if(l_result) controller->skipEvent();
+            // ////
+
         }
         else{
             //тут пока что пусто, лень
@@ -492,66 +540,67 @@ void Cathedral::attackWaypoints(int type, bool *result) {
             controller->clickButton("dark/waypoints/blessing","button_confirm");
         }
         else {
-            err.value = false;
-            err.errorMessage = "Не загрузились благословления после битвы.";
+            observer.value = l_result;
+            observer.comment = "blessing";
         }
         return;
     }
     default:{
-        err.value = false;
-        err.errorMessage = "На вход пришла ошибочная точка: " + QString::number(type);
+        observer.value.warning = m_Warning::FAIL_CHECK;
+        observer.comment = "wrong type of waypoint";
         return;
     }
     }
-    Sleep(500);
-    controller->compareSample("dark/waypoints","sample_complete","compare_complete",&l_result,true);
-    if(l_result) controller->clickButton("dark/waypoints","button_close");
-    else {
-        err.value = false;
-        err.errorMessage = "Не обнаружилось завершение точки.";
-    }
+    do controller->compareSample("dark/waypoints","sample_complete","compare_complete",&l_result,true);
+    while(!l_result);//подумать на будущее над счетчиком и если что проверку на ошибки выбрасывать
+    controller->clickButton("dark/waypoints","button_close");
     return;
 }
 
-void Cathedral::fullGamePass(bool *result) {
+void Cathedral::fullGamePass(ErrorList *result) {
     emit controller->Logging("Начато полное прохождение собора");
-    m_error err(result);
-    connect(&err, &m_error::Logging, controller, &Controller::LocalLogging);
-    bool l_result = false;
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, controller, &Controller::LocalLogging);
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     while(currentStage != 4) {
         emit controller->Logging("Прохождение " + QString::number(currentStage) + " этажа собора.");
         while(true) {
             findWaypoint(&l_result);
             if(!l_result) break;
-            emit controller->errorLogging("Обнаружил точку на координатах: " + QString::number(controller->getRect().x)
-                                          + ";" + QString::number(controller->getRect().y));
             controller->click(&l_result);
             if(!l_result){
-                err.value = false;
+                observer.value = l_result;
+                observer.print = false;
                 return;
             }
             int type = -1;
             checkWaypoints(type,&l_result);
             if(!l_result){
-                err.value = false;
+                observer.value = l_result;
+                observer.print = false;
                 return;
             }
             attackWaypoints(type,&l_result);
+            if(!l_result){
+                observer.value = l_result;
+                observer.print = false;
+                return;
+            }
         }
         if(currentStage == 4) break;
         checkStage(&l_result);
         if(!l_result){
-            err.value = false;
-            err.errorMessage = "Этаж не обнаружен";
+            observer.value = l_result;
+            observer.print = false;
             return;
         }
     }
 }
-void Cathedral::bossGamePass(bool *result) {
+void Cathedral::bossGamePass(ErrorList *result) {
     emit controller->Logging("Начато быстрое прохождение собора");
-    m_error err(result);
-    connect(&err, &m_error::Logging, controller, &Controller::LocalLogging);
-    bool l_result = false;
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, controller, &Controller::LocalLogging);
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     while(currentStage != 4) {
         emit controller->Logging("Прохождение " + QString::number(currentStage) + " этажа собора.");
         controller->Screenshot();
@@ -559,41 +608,45 @@ void Cathedral::bossGamePass(bool *result) {
         Mat l_object;
         controller->convertImage(QImage((localPath + "/dark/map/sample_0.png")), &l_object,&l_result);
         if(!l_result) {
-            err.value = false;
-            err.errorMessage = "Конвертация " + (localPath + "/dark/map/sample_0.png") + " failed";
+            observer.value = l_result;
+            observer.comment = ("convert->.../dark/map/sample_0.png");
             return;
         }
         controller->setMatObject(l_object,&l_result);
         if(!l_result) {
-            err.value = false;
+            observer.value = l_result;
+            observer.print = false;
             return;
         }
         controller->setMask("dark/map/find_0");
         controller->findObject(nullptr,&l_result);
         if(!l_result){
-            err.value = false;
+            observer.value = l_result;
+            observer.print = false;
             return;
         }
         Mat tempMat = controller->cutImage();
         controller->compareObject(0.12,&tempMat,nullptr,&l_result);
         QVector<Rect> bossWay = getBossWay(controller->getRect());
         int n = bossWay.count();
-        emit controller->errorLogging("+++Начальная точка: " + QString::number(controller->getRect().x)
+        emit controller->errorLogging("==Начальная точка: " + QString::number(controller->getRect().x)
                                       + ";" + QString::number(controller->getRect().y));
         if(n > 1) {
             int errorCount = 0;
             int type = -1;
             for(int i = 0; i < n; i++){
+                bool battle = true;
                 controller->clickPosition(bossWay[i]);
                 checkWaypoints(type,&l_result);
                 if(!l_result){
                     i--;
                     errorCount++;
-                    if(errorCount == 3) n = -5;//досрочный выход из блока
+                    if(errorCount == 3) n = -5;
                     continue;
                 }
                 else errorCount = 0;
-                attackWaypoints(type);
+                attackWaypoints(type,nullptr,&battle);
+                if(!battle) i--;//если поражение снова в ту точку
             }
             checkEndStage();
         }
@@ -606,13 +659,15 @@ void Cathedral::bossGamePass(bool *result) {
                                               + ";" + QString::number(controller->getRect().y));
                 controller->click(&l_result);
                 if(!l_result){
-                    err.value = false;
+                    observer.value = l_result;
+                    observer.print = false;
                     return;
                 }
                 int type = -1;
                 checkWaypoints(type,&l_result);
                 if(!l_result){
-                    err.value = false;
+                    observer.value = l_result;
+                    observer.print = false;
                     return;
                 }
                 attackWaypoints(type,&l_result);
@@ -621,11 +676,32 @@ void Cathedral::bossGamePass(bool *result) {
         if(currentStage == 4) break;
         checkStage(&l_result);
         if(!l_result){
-            err.value = false;
-            err.errorMessage = "Этаж не обнаружен";
+            observer.value = l_result;
+            observer.print = false;
             return;
         }
     }
+}
+
+void Cathedral::checkBattleResult(bool *battle){
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
+    do controller->compareSample("battle/end/quick","sample","compare",&l_result,true,0.025);
+    while (!l_result);
+    controller->compareSample("battle/end/quick","sample_victory","state_victory",&l_result,true);
+    if(!l_result) {
+        controller->compareSample("battle/end/quick","sample_defeat","state_victory",&l_result,false);
+        if(l_result) {
+            if(battle) *battle = false;
+        }
+    }
+    else {
+        if(battle) *battle = true;
+    }
+    controller->clickEsc();
+    ////?? надо ли, по-моему убрали их после битвы
+    controller->checkEvent(&l_result);
+    if(l_result) controller->skipEvent();
+    ////
 }
 
 QVector<Rect> Cathedral::getBossWay(Rect &rect){
@@ -770,5 +846,5 @@ QVector<Rect> Cathedral::getBossWay(Rect &rect){
     }
 }
 
-void Cathedral::safePower(bool *result) {}
-void Cathedral::setUnitsSet(bool *result) {}
+void Cathedral::safePower(ErrorList *result) {}
+void Cathedral::setUnitsSet(ErrorList *result) {}

@@ -96,7 +96,7 @@ void MainWindow::preProcessingData() {
     connect(controller,&Controller::emulatorCreated,tempData.data(),&GeneralData::saveEmulator,Qt::QueuedConnection);
     connect(this,&MainWindow::startController,controller,&Controller::Start,Qt::QueuedConnection);
     connect(this,&MainWindow::startBot,tempData.data(),&GeneralData::executeTasks,Qt::QueuedConnection);
-
+    connect(ocr,&Ocr::sendError,errorLog,&QTextEdit::append,Qt::QueuedConnection);
     createGUI();
     this->show();
 }

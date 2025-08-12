@@ -12,19 +12,19 @@ Arena::Arena(Controller *g_controller, QObject *parent)
 
 Arena::~Arena() {}
 
-void Arena::Initialize(TaskSettings *setting, bool *result) {
+void Arena::Initialize(TaskSettings *setting, ErrorList *result) {
     emit controller->Logging("Инициализация настроек арены.");
-    m_error err(result);
-    connect(&err, &m_error::Logging, controller, &Controller::LocalLogging);
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, controller, &Controller::LocalLogging);
     if (!setting) {
-        err.value = false;
-        err.errorMessage = "Передан нулевой указатель на настройки.";
+        observer.value.error = m_Error::FAIL_INIT;
+        observer.comment = "nullptr settings";
         return;
     }
     if(auto* arena = dynamic_cast<ArenaSettings*>(setting)) settings = arena;
     else {
-        err.value = false;
-        err.errorMessage = "Неправильный тип настроек подан на вход.";
+        observer.value.error = m_Error::FAIL_INIT;
+        observer.comment = "different type arena and unknown";
         emit controller->Logging("Произошла ошибка. Отправьте отчёт об ошибке.");
         settings = nullptr;
     }
@@ -34,75 +34,88 @@ void Arena::Stop(){
 
 }
 
-void Arena::Start(bool *result) {
+void Arena::Start(ErrorList *result) {
     emit controller->Logging("Задание [Арена] начато.");
-    m_error err(result);
-    connect(&err, &m_error::Logging, controller, &Controller::LocalLogging);
-    bool l_result = false;
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, controller, &Controller::LocalLogging);
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     controller->checkMainPage(&l_result);
     if(!l_result){
         controller->fixGameError(&l_result);
         if(!l_result){
-            err.value = false;
-            err.errorMessage = "Фиг знает где мы. Вызывайте чинилыча.";
+            observer.value = l_result;
+            observer.print = false;
             return;
         }
     }
     controller->clickButton("main","button_map");
     controller->checkMap(&l_result);
     if(!l_result){
-        err.value = false;
-        err.errorMessage = "Карта не открылась.";
+        observer.value = l_result;
+        observer.print = false;
         return;
     }
-    //
-    controller->clickButton("map","button_arena");
-    //
+    controller->clickMapButton("sample","button_arena",&l_result);
+    if(!l_result){
+        observer.value = l_result;
+        observer.print = false;
+        return;
+    }
     int k = 0;
     stop_flag = false;
     while(!stop_flag){
         listPlayers.clear();
-        checkStage();
+        checkStage(&l_result);
+        if(!l_result) {
+            observer.value = l_result;
+            observer.print = false;
+            return;
+        }
         if(currentStage == 0){
             checkSettings(&l_result);
             if(l_result){
                 controller->clickButton("arena/main","button_start");
                 confirmSquad(&l_result);
                 if(!l_result) {
-                    err.value = false;
-                    err.errorMessage = "Не удалось подтвердить отряд";
+                    observer.value = l_result;
+                    observer.print = false;
                     return;
                 }
                 waitFind();
             }
             else{
-                err.value = false;
-                err.errorMessage = "Настройки арены кривые...";
-                controller->Logging("Задание прервано. Ошибка в настройках");
+                observer.value.error = m_Error::FAIL_INIT;
+                observer.comment = "arena settings";
+                emit controller->Logging("Задание прервано. Ошибка в настройках");
                 return;
             }
         }
-        //
-        scanPlayers();
+        scanPlayers(&l_result);
+        if(!l_result){
+            observer.value = l_result;
+            observer.print = false;
+            return;
+        }
         printPlayers();
         attackPosition(settings->strategy.getPosition(listPlayers,currentStage,maxPower),&l_result);
         if(!l_result){
-            err.value = false;
-            err.errorMessage = "Не удалось тыкнуть во врага. Кол-во просканированных: " + QString::number(listPlayers.count());
+            //err.value = false;
+            //err.errorMessage = "Не удалось тыкнуть во врага. Кол-во просканированных: " + QString::number(listPlayers.count());
+            observer.value = l_result;
+            observer.print = false;
             return;
         }
-        //
         int tempCount = 0;
         if(currentStage < 5)
             do {
                 controller->compareSample("arena/battles","sample_next","state_wait",&l_result,true);
                 if(!l_result) {
                     tempCount++;
-                    Sleep(150);
+                    Sleep(100);
                     if(tempCount == 10) {tempCount = 0; break;}
                 }
-                else Sleep(1000);
-            } while(true);//тут сделать checkWait в 2 строчках
+                else Sleep(500);
+            } while(true);
         else
             do {
                 controller->compareSample("arena/battles","sample_end","state_wait",&l_result,true);
@@ -113,8 +126,8 @@ void Arena::Start(bool *result) {
                     if(k == settings->count) stop_flag = true;
                     break;
                 }
-                else Sleep(1000);
-            } while(true);//сделать checkEnd там же сделать зануление стадии и к++
+                else Sleep(500);
+            } while(true);
     }
     do controller->compareSample("arena/main","sample","compare",&l_result,true);
     while(!l_result);
@@ -123,22 +136,22 @@ void Arena::Start(bool *result) {
     if(!l_result){
         controller->checkMap(&l_result);
         if(!l_result) {
-            err.value = false;
-            err.errorMessage = "Неизвестное местонахождение";
+            observer.value = l_result;
+            observer.comment = "unknown page";
             return;
         }
         controller->clickButton("map","button_close");
     }
 }
 
-void Arena::confirmSquad(bool *result) {
-    m_error err(result);
-    connect(&err, &m_error::Logging, controller, &Controller::LocalLogging);
-    bool l_result = false;
-    while(!l_result) {
+void Arena::confirmSquad(ErrorList *result) {
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, controller, &Controller::LocalLogging);
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
+    do {
         controller->compareSample("squad/arena","sample","compare",&l_result,true);
         if(!l_result) Sleep(1000);
-    }
+    } while(!l_result);
     switch (settings->modeSquad) {
     case 0: {
         controller->clickButton("squad/arena","button_best",&l_result,2);
@@ -152,28 +165,31 @@ void Arena::confirmSquad(bool *result) {
         break;
     }
     default:{
-        err.value = false;
-        err.errorMessage = "Неправильная настройка.";
+        observer.value.error = m_Error::FAIL_INIT;
+        observer.comment = "wrong squad mode";
         return;
     }
     }
     controller->setMask("squad/arena/power");
     controller->findObject();
     checkPower(controller->cutImage(),&l_result);
-    if(!l_result){
+    if(l_result.warning == m_Warning::MORE_THAN_HISTORY_POWER){
         savePower(&l_result);
         if(!l_result){
-            err.value = false;
-            err.errorMessage = "Невозможно начать арену. Выставляемая мощь больше чем ИМ";
+            observer.value = l_result;
+            observer.print = false;
             return;
         }
+    } else if (!l_result){
+        observer.value = l_result;
+        observer.print = false;
+        return;
     }
-
-    controller->clickButton("squad/arena","button_start");
+    else controller->clickButton("squad/arena","button_start");
 }
 
 void Arena::waitFind(){
-    bool l_result = false;
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     int x = 0;
     do{
         controller->compareSample("arena/find","sample","compare",&l_result,true);
@@ -184,52 +200,56 @@ void Arena::waitFind(){
     checkStage();
 }
 
-void Arena::checkStage(bool *result) {
-    m_error err(result);
-    connect(&err, &m_error::Logging, controller, &Controller::LocalLogging);
-    bool l_result = false;
+void Arena::checkStage(ErrorList *result) {
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, controller, &Controller::LocalLogging);
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     controller->checkLoading();
     controller->compareSample("arena/battles","sample","compare",&l_result,true);
     if(!l_result){
         int count = 0;
         do{
-            controller->compareSample("arena/main","sample","compare",&l_result);
+            controller->compareSample("arena/main","sample","compare",&l_result,true);
             if(!l_result) {
                 count++;
                 Sleep(1000);
             }
-            else break;
+            else {
+                currentStage = 0;
+                return;
+            }
         }while (count < 5);
-        if (count < 5){
+        observer.value.warning = m_Warning::FAIL_COMPARE;
+        observer.comment = "unknown page, not arena main or battles";
+        return;
+    }
+    else{
+        controller->compareSample("arena/battles","sample_end","state_wait",&l_result,true);
+        if(l_result) {
             currentStage = 0;
-            return;
-        }
-        else {
-            err.value = false;
-            err.errorMessage = "Ни арены, ни битв арены";
+            controller->clickButton("arena/battles","button_home");
             return;
         }
     }
-    //проверку на подарок, если есть забрать и стейдж = 0
-    //
     controller->setMask("arena/battles/state_stage");
     controller->findObject();
     int temp = -1;
     emit controller->Recognize(controller->cutImage(),temp);
     temp /= 100;
     if((temp < 1) || (temp > 5)){
-        err.value = false;
-        err.errorMessage = "Неверный детект этапа арены: " + QString::number(temp);
+        observer.value.warning = m_Warning::FAIL_RECOGNIZE;
+        observer.comment = "stage:" + QString::number(temp);
         return;
     }
     currentStage = temp;
 }
 
-void Arena::scanPlayers(){
-    bool l_result = false;
+void Arena::scanPlayers(ErrorList *result){
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, controller, &Controller::LocalLogging);
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     controller->compareSample("arena/battles","sample_me","compare_me",nullptr,true,0.12);
     Rect temp = controller->getRect();
-    l_result = false;
     //scan my pos
     if((temp.y <= 215) && ((temp.y + temp.height) >= 215)) me.place = 1;
     else if((temp.y <= 320) && ((temp.y + temp.height) >= 320)) {
@@ -251,16 +271,19 @@ void Arena::scanPlayers(){
         else me.place = 0;
     }
     else me.place = 0;
-    emit controller->Logging("me x: " + QString::number(temp.x) + " y: " + QString::number(temp.y));
+    emit controller->Logging("me x: " + QString::number(temp.x) + " y: " + QString::number(temp.y),false);
     //
-    if(me.place == 0) return;
+    if(me.place == 0) {
+        observer.value.error = m_Error::FAIL_INIT;
+        observer.comment = "my place 0";
+        return;
+    }
     if(me.place != 1) controller->clickButton("arena/battles","button_1");
     else controller->clickButton("arena/battles","button_2");
-    l_result = false;
-    while(!l_result) {
+    do {
         controller->compareSample("battle/arena","sample","compare",&l_result,true);
         Sleep(1000);
-    }
+    } while(!l_result);
     controller->setMask("battle/arena/my_power");
     controller->findObject();
     emit controller->Recognize(controller->cutImage(),me.power);
@@ -288,136 +311,131 @@ void Arena::scanPlayers(){
             }
         }
         listPlayers.append(tempPlayer);
-        l_result = false;
-        while(!l_result) {
+        do {
             controller->clickButton("battle/arena","button_next",&l_result);
             Sleep(1000);
-        }
+        } while(!l_result);
     }
     controller->clickEsc();
 }
 
-void Arena::attackPosition(int pos, bool *result){
-    m_error err(result);
-    connect(&err, &m_error::Logging, controller, &Controller::LocalLogging);
-    bool l_result = false;
+void Arena::attackPosition(int pos, ErrorList *result){
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, controller, &Controller::LocalLogging);
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     if(listPlayers.size() != 10) {
-        err.value = false;
-        err.errorMessage = "Произошла ошибка на этапе скана игроков.";
+        observer.value.error = m_Error::FAIL_INIT;
+        observer.comment = "scan player: " + QString::number(listPlayers.size()) + " of 10";
         return;
     }
     controller->clickButton("arena/battles","button_" + QString::number(pos));
-    l_result = false;
-    while (!l_result) {
+    do {
         controller->compareSample("battle/arena","sample","compare",&l_result,true);
         if(!l_result) Sleep(1000);
-    }
-    //вместо тру потом условие на прем у игрока.
-    if(true) {
-        ///bl wl
-        controller->setMask("battle/arena/enemy_name");
-        controller->findObject();
-        Mat tempMat = controller->cutImage();
-        ///
+    } while (!l_result);
+
+
+    ///bl wl
+    //controller->setMask("battle/arena/enemy_name");
+    //controller->findObject();
+    //Mat tempMat = controller->cutImage();
+    //ArenaPlayer temp = listPlayers[pos-1];
+    ///
+
+    if(settings->premiumStatus) {
         controller->clickButton("battle/arena","button_qstart");
-        int count = 0;
-        do{
-        controller->skipEvent();
-        controller->compareSample("battle/end/quick","sample","compare",&l_result,true);
-        if(!l_result) {
-            count++;
-            Sleep(1000);
-        }
-        else count = 5;
-        }while(count < 5);
-        ///
-        controller->compareSample("battle/end/quick","sample_victory","state_victory",&l_result,true);
-        ArenaPlayer temp = listPlayers[pos-1];
-        if((temp.power > maxPower) && l_result) ;//save whitelist
-        if(temp.blackList && l_result) ;//save whitelist delete blacklist
-        controller->compareSample("battle/end/quick","sample_defeat","state_victory",&l_result,true);
-        if(temp.whiteList && l_result) ; //save bl delete wl
-        if(l_result) ; //save bl
-        //
-        controller->clickEsc();
-        Sleep(500);
-        controller->skipEvent();
+        bool battle = false;
+        checkBattleResult(&battle);
     }
-    else controller->clickButton("battle/arena","button_start");
+    else controller->clickButton("battle/arena","button_start"); // dodelat
+
+    ///bl wl
+    //if((temp.power > maxPower) && battle) ;//save whitelist
+    //if(temp.blackList && battle) ;//save whitelist delete blacklist
+    //if(temp.whiteList && !battle) ; //save bl delete wl
+    //if(!battle) ; //save bl
+    ///
 }
 
-void Arena::checkSettings(bool *result) {
-    emit controller->errorLogging("Проверка настроек");
-    m_error err(result);
-    connect(&err, &m_error::Logging, controller, &Controller::LocalLogging);
-    bool l_result = false;
+void Arena::checkSettings(ErrorList *result) {
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, controller, &Controller::LocalLogging);
     if(settings->history_power < 1) {
-        err.value = false;
-        err.errorMessage = "Неправильные настройки. ИМ < 1";
+        observer.value.error = m_Error::FAIL_INIT;
+        observer.comment = "history power < 1";
         return;
     }
     switch(settings->modeTicket) {
     case 0:{
-        controller->compareSample("arena/main","sample_apples","state_apples",&l_result);
-        if(!l_result) controller->clickButton("arena/main","button_apples");
+        controller->clickButton("arena/main","button_apples");
         break;
     }
     case 1:{
-        controller->compareSample("arena/main","sample_ticket","state_ticket",&l_result);
-        if(!l_result) controller->clickButton("arena/main","button_ticket");
+        controller->clickButton("arena/main","button_ticket");
         break;
     }
     case 2://{пока что не работает}
     case 3://туда же
     default:{
-        err.value = false;
-        err.errorMessage = "Неправильные настройки расходников";
+        observer.value.error = m_Error::FAIL_INIT;
+        observer.comment = "wrong key";
         return;
     }
     }
 
 }
 
-void Arena::checkPower(const Mat &object, bool *result) {
-    emit controller->errorLogging("Проверка мощи отряда арены");
-    m_error err(result);
-    connect(&err, &m_error::Logging, controller, &Controller::LocalLogging);
-    bool l_result = false;
+void Arena::checkPower(const Mat &object, ErrorList *result) {
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, controller, &Controller::LocalLogging);
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     if(object.empty()){
-        err.value = false;
-        err.errorMessage = "Пустое изображение на входе в проверку мощи";
+        observer.value.error = m_Error::EMPTY_IMG;
+        observer.comment = "empty object";
         return;
     }
     Mat temp;
+    imwrite("G:/Coding/Photo/ocr/before_change.png", object);
     controller->changeColor(object,&temp,&l_result);
+    imwrite("G:/Coding/Photo/ocr/after_change.png", object);
+    imwrite("G:/Coding/Photo/ocr/after_temp.png", temp);
     if(!l_result) {
-        err.value = false;
-        err.errorMessage = "Не удалось поменять цвета картиночек...";
+        observer.value = l_result;
+        observer.print = false;
         return;
     }
     int number = -1;
     emit controller->Recognize(temp,number);
-    if(number < 0 && number > settings->history_power) {
-        err.value = false;
+    if(number < 0) {
+        observer.value.warning = m_Warning::FAIL_RECOGNIZE;
+        observer.comment = "number < 0";
+        return;
+    }
+    else if(number > settings->history_power) {
+        observer.value.warning = m_Warning::MORE_THAN_HISTORY_POWER;
         return;
     }
 }
 
-void Arena::savePower(bool *result) {
-    emit controller->errorLogging("Спасаю ИМ");
-    m_error err(result);
-    connect(&err, &m_error::Logging, controller, &Controller::LocalLogging);
-    bool l_result = false;
+void Arena::savePower(ErrorList *result) {
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, controller, &Controller::LocalLogging);
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     int x = 0;
     while(!l_result || x < 3){
         controller->clickSwipe({460,180,0,0},{460,400,0,0},&l_result);
         controller->Screenshot();
         checkPower(controller->cutImage(),&l_result);
-        if(!l_result) x++;
+        if(l_result.warning == m_Warning::MORE_THAN_HISTORY_POWER) x++;
+        else {
+            observer.value = l_result;
+            observer.comment = "fix";
+            return;
+        }
     }
     if(x == 3) {
-        err.value = false;
-        err.errorMessage = "Не получилось сохранить ИМ";
+        observer.value = l_result;
+        observer.comment = "cant save power";
         return;
     }
     int y = 0;
@@ -432,17 +450,17 @@ void Arena::savePower(bool *result) {
 }
 
 void Arena::printPlayers(){
-    emit controller->Logging(("Текущий этап: " + QString::number(currentStage)));
+    emit controller->Logging("Текущий этап: " + QString::number(currentStage));
     for(int i = 0,n = listPlayers.size(); i < n; i++) {
         ArenaPlayer temp = listPlayers[i];
         QString str = "[" + QString::number(i) + "] Место: " + QString::number(temp.place);
         str += " Мощь: " + QString::number(temp.power) + "\n";
-        str += " BL: " + QString(temp.blackList ? "+" : "-")
-            +  " WL: " + QString(temp.whiteList ? "+" : "-");
+        str += QString(temp.blackList ? "BL" : "")
+            +  QString(temp.whiteList ? "WL" : "");
         str += " Статус: ";
         switch (temp.status){
         case (State::AVAILABLE): {
-            str += "Доступен для атаки";
+            str += "Атаковать";
             break;
         }
         case (State::DEFEAT): {
@@ -466,11 +484,32 @@ void Arena::printPlayers(){
             break;
         }
         }
-        emit controller->Logging(str);
+        emit controller->Logging(str,false);
     }
 }
 
-void Arena::setUnitsSet(bool *result) {}
+void Arena::checkBattleResult(bool *battle) {
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
+    do {
+        //controller->skipEvent(); а нужен ли
+        controller->compareSample("battle/end/quick","sample","compare",&l_result,true);
+        if(l_result) break;
+    }while(true);
+    ///
+    controller->compareSample("battle/end/quick","sample_victory","state_victory",&l_result,true);
+    if(l_result) {
+        if (battle) *battle = true;
+    }
+    else {
+        controller->compareSample("battle/end/quick","sample_defeat","state_victory",&l_result,true);
+        if(l_result) if(battle) *battle = false;
+    }
+    //
+    controller->clickEsc();
+    Sleep(300);
+    controller->skipEvent();
+}
+void Arena::setUnitsSet(ErrorList *result) {}
 void Arena::savePlayerToBlackList(const Mat &player, int playerPower){}
 void Arena::savePlayerToWhileList(const Mat &player, int playerPower){}
 void Arena::loadLists(int playerID) {}

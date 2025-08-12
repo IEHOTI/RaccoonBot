@@ -25,7 +25,9 @@ void MainWindow::createMainTab(QWidget *tab,int index) {
     statusLabel->setAlignment(Qt::AlignCenter);
     statusLabel->setGeometry(5,245,250,25);
 
-    connect(tempController,&Controller::Logging,statusLabel,&QLabel::setText);
+    connect(tempController,&Controller::Logging,this,[=](const QString &msg, const bool print){
+        if(print) statusLabel->setText(msg);
+    },Qt::QueuedConnection);
 
     QPushButton* startButton = new QPushButton("Старт",tab);
     startButton->setGeometry(5,280,120,30);
@@ -70,8 +72,7 @@ void MainWindow::createMainTab(QWidget *tab,int index) {
     });
 
     connect(startButton,&QPushButton::clicked,this,[=](){
-        tempUser->bot_ID = (rand() % 10000);
-        //getSettings(controllerThread);
+        if(tempUser->botID == 0) tempUser->bot_ID = (rand() % 10000);
         labelRaccoon->setPixmap(QPixmap(":/pages/anger.png"));
         startButton->setEnabled(false);
         listEmulators->setEnabled(false);
@@ -79,13 +80,6 @@ void MainWindow::createMainTab(QWidget *tab,int index) {
         stopButton->setEnabled(true);
         stopButton->setStyleSheet("background-color:red; color:white;");
         botThreads[index]->start();
-        qDebug() << "Start bot" << botThreads.size();
-        qDebug() << "Main Thread" << this->thread();
-        qDebug() << "Thread status:" << botThreads[index]->isRunning(); // true/false
-        qDebug() << "Thread object:" << botThreads[index];
-        qDebug() << "GeneralData thread:" << listData[index]->thread();
-        qDebug() << "Controller thread:" << listData[index]->controller->thread();
-        qDebug() << "Emulator thread:" << (listData[index]->emulator ? listData[index]->emulator->thread() : nullptr);
         emit startController(tempUser,nullptr);
     });
 
@@ -107,6 +101,8 @@ void MainWindow::createMainTab(QWidget *tab,int index) {
             labelRaccoon->setPixmap(QPixmap(":/pages/cute.png"));
         }
 
+        tabWidget->setTabText(index,QString::number(listData[index]->user->user_ID));
+
         emit saveTaskQueue();
 
         getSettings(index);
@@ -121,13 +117,12 @@ void MainWindow::createMainTab(QWidget *tab,int index) {
         startButton->setStyleSheet("background-color:green");
         stopButton->setEnabled(false);
         stopButton->setStyleSheet("background-color:gray");
-        // //controller->Stop();
-        // cathedral->Stop();
-        // delete cathedralSettings;
-        // cathedral->deleteLater();
-        // cathedralSettings = nullptr;
-        // cathedral = nullptr;
+        if(listData[index]->currentTask < 0) listData[index]->controller->Stop();
+        else emit listData[index]->stopTask();
+        botThreads[index]->quit();
+        botThreads[index]->wait();
     });
+
 }
 
 void MainWindow::getSettings(int index) {

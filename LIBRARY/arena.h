@@ -6,21 +6,22 @@
 class BOTLIB_EXPORT Arena : public Task
 {
 public:
-    explicit Arena(Controller* g_controller, QObject *parent = nullptr);
+    explicit Arena(Controller *g_controller, QObject *parent = nullptr);
     ~Arena();
 
-    void Start(bool *result = nullptr) override;
-    void Initialize(TaskSettings *setting, bool *result = nullptr) override;
+    void Start(ErrorList *result = nullptr) override;
+    void Initialize(TaskSettings *setting, ErrorList *result = nullptr) override;
     void Stop() override;
-    void checkPower(const Mat &object, bool *result = nullptr) override;
-    void setUnitsSet(bool *result = nullptr) override;//
+    void checkPower(const Mat &object, ErrorList *result = nullptr) override;
+    void setUnitsSet(ErrorList *result = nullptr) override;//
+    void checkBattleResult(bool *battle = nullptr) override;
 
-    void confirmSquad(bool *result = nullptr);
-    void checkStage(bool *result = nullptr);
-    void checkSettings(bool *result = nullptr);
-    void savePower(bool *result = nullptr);
-    void scanPlayers();
-    void attackPosition(int pos,bool *result = nullptr);
+    void confirmSquad(ErrorList *result = nullptr);
+    void checkStage(ErrorList *result = nullptr);
+    void checkSettings(ErrorList *result = nullptr);
+    void savePower(ErrorList *result = nullptr);
+    void scanPlayers(ErrorList *result = nullptr);
+    void attackPosition(int pos,ErrorList *result = nullptr);
     void waitFind();
     void printPlayers();
 

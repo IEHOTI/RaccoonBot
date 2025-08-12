@@ -7,8 +7,8 @@
 
 wstring GetCommandLineForHWND(HWND hwnd);
 
-wstring sanitizePath(const wstring& input, typeEmu type, int& instance);
+wstring sanitizePath(const wstring &input, typeEmu type, int &instance);
 
-bool FindEmulator(const QString &windowName, HWND* main, HWND* game); // need bool?
+bool FindEmulator(const QString &windowName, HWND *main, HWND *game); // need bool?
 
 #endif // EMULATORCOMPONENTS_H

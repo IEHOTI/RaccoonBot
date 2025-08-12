@@ -7,28 +7,31 @@
 class BOTLIB_EXPORT Cathedral : public Task
 {
 public:
-    explicit Cathedral(Controller *g_controller, QObject* parent = nullptr);
+    explicit Cathedral(Controller *g_controller, QObject *parent = nullptr);
     ~Cathedral();
-    void Start(bool *result = nullptr) override;
-    void Initialize(TaskSettings *setting, bool *result = nullptr) override;
+    void Start(ErrorList *result = nullptr) override;
+    void Initialize(TaskSettings *setting, ErrorList *result = nullptr) override;
     void Stop() override;
-    void checkPower(const Mat &object, bool *result = nullptr) override;
-    void setUnitsSet(bool *result = nullptr) override;//
-    void confirmSquad(bool *result = nullptr);
-    void checkStage(bool *result = nullptr);
-    void checkSettings(bool *result = nullptr);
-    void checkWarnings(bool *result = nullptr);
-    void findWaypoint(bool *result = nullptr);
-    void checkEndStage(bool *result = nullptr);
-    void checkWaypoints(int &type, bool *result = nullptr);
-    void attackWaypoints(int type, bool *result = nullptr);
-    void fullGamePass(bool *result = nullptr);
-    void safePower(bool *result = nullptr);//это при выставлении юнитов в mode собственный отряд
-    void bossGamePass(bool *result = nullptr);//
+    void checkPower(const Mat &object, ErrorList *result = nullptr) override;
+    void setUnitsSet(ErrorList *result = nullptr) override;//
+    void checkBattleResult(bool *battle = nullptr) override;
+
+    void confirmSquad(ErrorList *result = nullptr);
+    void checkMain(ErrorList *result = nullptr);
+    void checkStage(ErrorList *result = nullptr);
+    void checkSettings(ErrorList *result = nullptr);
+    void checkWarnings();
+    void findWaypoint(ErrorList *result = nullptr);
+    void checkEndStage(ErrorList *result = nullptr);
+    void checkWaypoints(int &type, ErrorList *result = nullptr);
+    void attackWaypoints(int type, ErrorList *result = nullptr, bool *battle = nullptr);
+    void fullGamePass(ErrorList *result = nullptr);
+    void safePower(ErrorList *result = nullptr);//это при выставлении юнитов в mode собственный отряд
+    void bossGamePass(ErrorList *result = nullptr);//
     QVector<Rect> getBossWay(Rect &rect);
 private:
     QStringList nameWaypoints;
-    CathedralSettings* settings;
+    CathedralSettings *settings;
     int currentStage;
 };
 
