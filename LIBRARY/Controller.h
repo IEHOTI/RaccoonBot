@@ -1,7 +1,8 @@
 #ifndef CONTROLLER_H
 #define CONTROLLER_H
 
-
+#include <QThread>
+#include <QCoreApplication>
 #include "BotLib_global.h"
 #include "Structs.h"
 #include "Emulator.h"
@@ -14,11 +15,9 @@
 class BOTLIB_EXPORT Controller : public QObject {
     Q_OBJECT
 public:
-    explicit Controller(QObject *parent = nullptr);  // Добавляем параметр parent
+    explicit Controller(QObject *parent = nullptr);
     ~Controller() = default;
 
-    //Для тестов(потом удалить)
-    void InitLight(userProfile user);
     /////
     /// \brief image
     ///
@@ -46,13 +45,13 @@ public:
     /////
     /// \brief keyboard + mouse
     ///
-    void click(ErrorList *result = nullptr, int count = 2, int delay = 200);
-    void clickPosition(const Rect &point, ErrorList *result = nullptr, int count = 2, int delay = 200);
+    void click(ErrorList *result = nullptr, int count = 2, int delay = 100);
+    void clickPosition(const Rect &point, ErrorList *result = nullptr, int count = 2, int delay = 100);
     void clickSwipe(const Rect &start,const Rect &finish, ErrorList *result = nullptr);
-    void clickButton(const QString &pagePath,const QString &buttonName, ErrorList *result = nullptr, int count = 2, int delay = 200);
-    void clickEsc(ErrorList *result = nullptr);
-    void clickReturn(ErrorList *result = nullptr);
-    void clickMapButton(const QString &pageName, const QString &buttonName, ErrorList *result = nullptr, int count = 2, int delay = 200); // pagename = sample or sample_right
+    void clickButton(const QString &pagePath,const QString &buttonName, ErrorList *result = nullptr, int count = 2, int delay = 100);
+    void clickEsc(ErrorList *result = nullptr, int count = 1);
+    void clickReturn(ErrorList *result = nullptr, int count = 2);
+    void clickMapButton(const QString &pageName, const QString &buttonName, ErrorList *result = nullptr, int count = 2, int delay = 100); // pagename = sample or sample_right
     /////
     /// \brief game
     ///
@@ -60,19 +59,20 @@ public:
     void userInitialize(userProfile *user, ErrorList *result = nullptr);
     void fixGameError(ErrorList *result = nullptr);
     void getGameError();
-    void refreshMainPage(ErrorList *result = nullptr);// доделать, не распознает правильно
+    void refreshMainPage(ErrorList *result = nullptr);
     void skipEvent();
     void fixPopUpError(ErrorList *result = nullptr);
     ////
     /// \brief barracks
     ///
-    void findBarracks(ErrorList *result = nullptr);//
-    void entryBarracks(ErrorList *result = nullptr);//
-    void scanSquadCount(userProfile *user, ErrorList *result = nullptr);//
+    void findBarracks(ErrorList *result = nullptr);
+    void entryBarracks(ErrorList *result = nullptr);
+    void scanSquadCount(userProfile *user, ErrorList *result = nullptr);
+    void setUnitSet(int index, typeSet set = typeSet::NOT_TOUCH, ErrorList *result = nullptr);
     ///
     /// \brief game checker доделать
     ///
-    void checkMap(ErrorList *result = nullptr);//сделать
+    void checkMap(ErrorList *result = nullptr);
     void checkLoading();
     void checkGameLoading();
     void checkMainPage(ErrorList *result = nullptr);
@@ -91,9 +91,12 @@ public:
     /////
     /// \brief controller
     ///
-    void Start(userProfile *user, ErrorList *result = nullptr); // тут настройки проверяются в игре и сама игра дописать
-    void Stop(ErrorList *result = nullptr);
-    void LocalLogging(const QString &msg); // внутри тупо emit errorLogging();
+    void CleanUp();
+
+public slots:
+    void Start(userProfile *user, ErrorList *result = nullptr);
+    void Stop();
+    void LocalLogging(const QString &msg);
 signals:
     void Recognize(const Mat &object, int &number);
     void emulatorStart(ErrorList *result = nullptr);
@@ -102,13 +105,16 @@ signals:
     void Logging(const QString &msg, const bool print = true);
     void errorLogging(const QString &msg);
     void endStart();
+    void stopStart();
     void emulatorCreated(Emulator *emulator);
     void SuccessFix();//если фиксер починил, но произошла перезагрузка эмулятора начать задание заново i--
+    void saveTaskQueue(int index);
 private:
     HWND m_main, m_game;
     Mat m_object, m_sample, m_mask;
     Rect m_rect; //при поиске в нём корды
     QString mainPath;
+    bool isWorking;
 };
 
 #endif // CONTROLLER_H

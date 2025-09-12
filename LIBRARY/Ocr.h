@@ -1,14 +1,12 @@
 #ifndef OCR_H
 #define OCR_H
-
-#include "BotLib_global.h"
 #include "Error.h"
 
 class BOTLIB_EXPORT Ocr : public QObject {
     Q_OBJECT
 public:
-    explicit Ocr(const path &train, QObject* parent = nullptr);
-    ~Ocr() = default;
+    explicit Ocr(QObject* parent = nullptr);
+    ~Ocr(); /* = default;*/
 
     struct Params {
         int gray_threshold = 242;
@@ -46,7 +44,7 @@ private:
 
     mutable mutex mKnearesMutex;
     Ptr<ml::KNearest> mKNearest;
-    const path mTrainDir;
+    QString mTrainDir;
 
     atomic<bool> mIsLoaded = false;
     Params mParams;

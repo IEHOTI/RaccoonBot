@@ -1,6 +1,5 @@
 #ifndef TASK_H
 #define TASK_H
-#include "BotLib_global.h"
 #include "Controller.h"
 #include "TaskSettings.h"
 #include "Error.h"
@@ -11,6 +10,7 @@ public:
     explicit Task(QObject *parent = nullptr) : QObject(parent) {}
     virtual ~Task() = default;
     virtual void Start(ErrorList *result = nullptr) = 0;
+    virtual void Pause() = 0;
     virtual void Initialize(TaskSettings *setting, ErrorList *result = nullptr) = 0;
     virtual void Stop() = 0;
     virtual void checkPower(const Mat &object, ErrorList *result = nullptr) = 0;

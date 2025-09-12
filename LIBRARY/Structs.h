@@ -2,7 +2,6 @@
 #define STRUCTS_H
 
 #include "BotLib_global.h"
-#include "Error.h"
 
 #include <QHBoxLayout>
 #include <QVBoxLayout>
@@ -31,8 +30,16 @@ enum class typeEmu {
     UNKNOWN,
 };
 
+enum class typeSet {
+    SET_1,
+    SET_2,
+    SET_3,
+    UNEQUIP,
+    NOT_TOUCH,
+};
+
 struct BOTLIB_EXPORT userProfile {
-    int bot_ID; // в GUI
+    int bot_ID = 0; // в GUI
     int user_ID; // account id
     int history_power;
     int count_units;
@@ -44,8 +51,6 @@ struct BOTLIB_EXPORT userProfile {
     QTextEdit *logger; // = new в GUI делать
 
     userProfile() {
-        bot_ID = 0;
-        bot_ID = 0;
         user_ID = 0;
         history_power = 0;
         count_units = 0;
@@ -210,9 +215,16 @@ struct BOTLIB_EXPORT userProfile {
     }
 };
 
-struct BOTLIB_EXPORT squad {
-    int count;
-    QVector<int> unitSets;
+struct StopException : public std::exception {
+    const char* what() const noexcept override {
+        return "Thread was stopped by request";
+    }
+};
+
+struct PauseException : public std::exception {
+    const char* what() const noexcept override {
+        return "Thread was paused by request";
+    }
 };
 
 //////////arena

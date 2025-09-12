@@ -8,7 +8,13 @@ Cathedral::Cathedral(Controller *g_controller, QObject* parent)  : Task(parent) 
     currentStage = 0;
     stop_flag = false;
 }
-Cathedral::~Cathedral() {}
+
+Cathedral::~Cathedral() {
+    settings = nullptr;
+    controller->Logging("Остановка задания [Собор].");
+    controller->CleanUp();
+    controller = nullptr;
+}
 
 void Cathedral::Initialize(TaskSettings *setting, ErrorList *result) {
     emit controller->Logging("Инициализация настроек собора.");
@@ -28,10 +34,12 @@ void Cathedral::Initialize(TaskSettings *setting, ErrorList *result) {
     }
     return;
 }
+void Cathedral::Pause() {
+    throw PauseException();
+}
 
 void Cathedral::Stop() {
-    stop_flag = true;
-    controller->errorLogging("Остановка задания [Собор].");
+    throw StopException();
 }
 
 void Cathedral::Start(ErrorList *result) {
@@ -39,89 +47,100 @@ void Cathedral::Start(ErrorList *result) {
     ErrorObserver observer(result);
     connect(&observer, &ErrorObserver::Logging, controller, &Controller::LocalLogging);
     ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
-    controller->checkMainPage(&l_result);
-    if(!l_result){
-        controller->fixGameError(&l_result);
+    try {
+        controller->checkMainPage(&l_result);
         if(!l_result){
-            observer.value = l_result;
-            observer.print = false;
-            return;
-        }
-    }
-    controller->clickButton("main","button_map");
-    controller->checkMap(&l_result);
-    if(!l_result){
-        observer.value = l_result;
-        observer.print = false;
-        return;
-    }
-    controller->clickMapButton("sample","button_dark",&l_result);
-    if(!l_result){
-        observer.value = l_result;
-        observer.print = false;
-        return;
-    }
-    int k = 0;
-    stop_flag = false;
-    while(!stop_flag) {
-        currentStage = 0;
-        checkMain(&l_result);
-        if(!l_result){
-            observer.value = l_result;
-            observer.print = false;
-        }
-        if(currentStage == 0) {
-            checkSettings(&l_result);
-            if(l_result) {
-                controller->clickButton("dark","button_start");
-                confirmSquad(&l_result);
-                if(!l_result){
-                    observer.value = l_result;
-                    observer.print = false;
-                    return;
-                }
-            }
-            else {
-                observer.value = l_result;
-                observer.print = false;
-                emit controller->Logging("Задание прервано. Ошибка в настройках");
-                return;
-            }
-            checkStage(&l_result);
+            controller->fixGameError(&l_result);
             if(!l_result){
                 observer.value = l_result;
                 observer.print = false;
                 return;
             }
         }
-        if(settings->fullGamePass) fullGamePass(&l_result);
-        else bossGamePass(&l_result);
-        do controller->compareSample("dark","sample_end","compare_end",&l_result,true);
-        while(!l_result);
-        do {
-            controller->compareSample("dark","sample_end","compare_end",&l_result,true);
-            if(l_result) {
-                controller->clickButton("dark","button_end");
-                Sleep(200);
-            }
-        } while(l_result);
-        controller->checkLoading();
-        Sleep(200);
-        controller->checkEvent(&l_result);
-        if(l_result) controller->skipEvent();
-        k++;
-        if(k == settings->count) stop_flag = true;
-    }
-    controller->clickButton("dark","button_close");
-    controller->checkMainPage(&l_result);
-    if(!l_result){
+        controller->clickButton("main","button_map");
         controller->checkMap(&l_result);
-        if(!l_result) {
+        if(!l_result){
             observer.value = l_result;
             observer.print = false;
             return;
         }
-        controller->clickButton("map","button_close");
+        controller->clickMapButton("sample","button_dark",&l_result);
+        if(!l_result){
+            observer.value = l_result;
+            observer.print = false;
+            return;
+        }
+        int k = 0;
+        stop_flag = false;
+        while(!stop_flag) {
+            currentStage = 0;
+            checkMain(&l_result);
+            if(!l_result){
+                observer.value = l_result;
+                observer.print = false;
+            }
+            if(currentStage == 0) {
+                checkSettings(&l_result);
+                if(l_result) {
+                    controller->clickButton("dark","button_start");
+                    confirmSquad(&l_result);
+                    if(!l_result){
+                        observer.value = l_result;
+                        observer.print = false;
+                        return;
+                    }
+                }
+                else {
+                    observer.value = l_result;
+                    observer.print = false;
+                    emit controller->Logging("Задание прервано. Ошибка в настройках");
+                    return;
+                }
+                checkStage(&l_result);
+                if(!l_result){
+                    observer.value = l_result;
+                    observer.print = false;
+                    return;
+                }
+            }
+            if(settings->fullGamePass) fullGamePass(&l_result);
+            else bossGamePass(&l_result);
+            do controller->compareSample("dark","sample_end","compare_end",&l_result,true);
+            while(!l_result);
+            do {
+                controller->compareSample("dark","sample_end","compare_end",&l_result,true);
+                if(l_result) {
+                    controller->clickButton("dark","button_end");
+                    Sleep(200);
+                }
+            } while(l_result);
+            controller->checkLoading();
+            Sleep(750);
+            controller->checkEvent(&l_result);
+            if(l_result) controller->skipEvent();
+            k++;
+            if(k == settings->count) stop_flag = true;
+        }
+        controller->clickButton("dark","button_close");
+        controller->checkMainPage(&l_result);
+        if(!l_result){
+            controller->checkMap(&l_result);
+            if(!l_result) {
+                observer.value = l_result;
+                observer.print = false;
+                return;
+            }
+            controller->clickButton("map","button_close");
+        }
+    } catch (const StopException &e) {
+        observer.value.error = m_Error::STOP_TASK;
+        observer.comment = e.what();
+        QThread::currentThread()->quit();
+        return;
+    } catch (const PauseException &e){
+        observer.value.error = m_Error::PAUSE_TASK;
+        observer.comment = e.what();
+        return;
     }
 }
 
@@ -182,14 +201,21 @@ void Cathedral::confirmSquad(ErrorList *result) {
     }
     controller->clickButton("squad/dark","button_start",&l_result,2);
     checkWarnings();
-    Sleep(1000);
-    controller->compareSample("load","sample","compare",&l_result,true);
-    if(!l_result) {
-        observer.value = l_result;
-        observer.print = false;
-        emit controller->Logging("Не удалось начать собор. Отправьте сообщение об ошибке.");
-        return;
+    int x = 0;
+    do{
+        controller->compareSample("load","sample","compare",&l_result,true);
+        if(l_result) break;
+        else{
+            x++;
+            if(x == 100){
+                observer.value.error = m_Error::FAIL_INIT;
+                observer.comment = "sample after warning";
+                return;
+            }
+        }
+        Sleep(1000);
     }
+    while(!l_result);
 }
 
 void Cathedral::checkMain(ErrorList *result){
@@ -697,11 +723,7 @@ void Cathedral::checkBattleResult(bool *battle){
     else {
         if(battle) *battle = true;
     }
-    controller->clickEsc();
-    ////?? надо ли, по-моему убрали их после битвы
-    controller->checkEvent(&l_result);
-    if(l_result) controller->skipEvent();
-    ////
+    controller->clickEsc(nullptr,2);
 }
 
 QVector<Rect> Cathedral::getBossWay(Rect &rect){

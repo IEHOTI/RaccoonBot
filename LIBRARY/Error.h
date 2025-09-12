@@ -30,6 +30,9 @@ struct ErrorList {
         //emulator
         FAIL_INIT,
         NO_ACTIVE_EMULATOR,
+        //other
+        STOP_TASK,
+        PAUSE_TASK,
     } error;
 
     bool operator!() const {
@@ -89,4 +92,11 @@ public:
 signals:
     void Logging(const QString &msg);
 };
+
+inline void NoPrintError(ErrorObserver *observer, ErrorList result) {
+    observer->value = result;
+    observer->print = false;
+    return;
+}
+
 #endif // ERROR_H

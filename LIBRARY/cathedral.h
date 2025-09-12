@@ -2,7 +2,6 @@
 #define CATHEDRAL_H
 
 #include "Task.h"
-#include "TaskSettings.h"
 
 class BOTLIB_EXPORT Cathedral : public Task
 {
@@ -10,6 +9,7 @@ public:
     explicit Cathedral(Controller *g_controller, QObject *parent = nullptr);
     ~Cathedral();
     void Start(ErrorList *result = nullptr) override;
+    void Pause() override;
     void Initialize(TaskSettings *setting, ErrorList *result = nullptr) override;
     void Stop() override;
     void checkPower(const Mat &object, ErrorList *result = nullptr) override;

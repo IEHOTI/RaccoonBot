@@ -8,9 +8,18 @@ Arena::Arena(Controller *g_controller, QObject *parent)
     localPath = g_controller->getMainPath();
     maxPower = INT_MAX;
     currentStage = 0;
+    stop_flag = false;
 }
 
-Arena::~Arena() {}
+Arena::~Arena() {
+    listPlayers.clear();
+    blackList.clear();
+    whiteList.clear();
+    settings = nullptr;
+    controller->Logging("Остановка задания [Арена].");
+    controller->CleanUp();
+    controller = nullptr;
+}
 
 void Arena::Initialize(TaskSettings *setting, ErrorList *result) {
     emit controller->Logging("Инициализация настроек арены.");
@@ -30,8 +39,13 @@ void Arena::Initialize(TaskSettings *setting, ErrorList *result) {
     }
     return;
 }
-void Arena::Stop(){
 
+void Arena::Pause() {
+    throw PauseException();
+}
+
+void Arena::Stop(){
+    throw StopException();
 }
 
 void Arena::Start(ErrorList *result) {
@@ -39,108 +53,123 @@ void Arena::Start(ErrorList *result) {
     ErrorObserver observer(result);
     connect(&observer, &ErrorObserver::Logging, controller, &Controller::LocalLogging);
     ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
-    controller->checkMainPage(&l_result);
-    if(!l_result){
-        controller->fixGameError(&l_result);
+    try{
+        setUnitsSet(&l_result);
         if(!l_result){
             observer.value = l_result;
             observer.print = false;
             return;
         }
-    }
-    controller->clickButton("main","button_map");
-    controller->checkMap(&l_result);
-    if(!l_result){
-        observer.value = l_result;
-        observer.print = false;
-        return;
-    }
-    controller->clickMapButton("sample","button_arena",&l_result);
-    if(!l_result){
-        observer.value = l_result;
-        observer.print = false;
-        return;
-    }
-    int k = 0;
-    stop_flag = false;
-    while(!stop_flag){
-        listPlayers.clear();
-        checkStage(&l_result);
-        if(!l_result) {
-            observer.value = l_result;
-            observer.print = false;
-            return;
-        }
-        if(currentStage == 0){
-            checkSettings(&l_result);
-            if(l_result){
-                controller->clickButton("arena/main","button_start");
-                confirmSquad(&l_result);
-                if(!l_result) {
-                    observer.value = l_result;
-                    observer.print = false;
-                    return;
-                }
-                waitFind();
-            }
-            else{
-                observer.value.error = m_Error::FAIL_INIT;
-                observer.comment = "arena settings";
-                emit controller->Logging("Задание прервано. Ошибка в настройках");
+        controller->checkMainPage(&l_result);
+        if(!l_result){
+            controller->fixGameError(&l_result);
+            if(!l_result){
+                observer.value = l_result;
+                observer.print = false;
                 return;
             }
         }
-        scanPlayers(&l_result);
-        if(!l_result){
-            observer.value = l_result;
-            observer.print = false;
-            return;
-        }
-        printPlayers();
-        attackPosition(settings->strategy.getPosition(listPlayers,currentStage,maxPower),&l_result);
-        if(!l_result){
-            //err.value = false;
-            //err.errorMessage = "Не удалось тыкнуть во врага. Кол-во просканированных: " + QString::number(listPlayers.count());
-            observer.value = l_result;
-            observer.print = false;
-            return;
-        }
-        int tempCount = 0;
-        if(currentStage < 5)
-            do {
-                controller->compareSample("arena/battles","sample_next","state_wait",&l_result,true);
-                if(!l_result) {
-                    tempCount++;
-                    Sleep(100);
-                    if(tempCount == 10) {tempCount = 0; break;}
-                }
-                else Sleep(500);
-            } while(true);
-        else
-            do {
-                controller->compareSample("arena/battles","sample_end","state_wait",&l_result,true);
-                if(l_result) {
-                    k++;
-                    currentStage = 0;
-                    controller->clickButton("arena/battles","button_home");
-                    if(k == settings->count) stop_flag = true;
-                    break;
-                }
-                else Sleep(500);
-            } while(true);
-    }
-    do controller->compareSample("arena/main","sample","compare",&l_result,true);
-    while(!l_result);
-    controller->clickButton("arena/main","button_close");
-    controller->checkMainPage(&l_result);
-    if(!l_result){
+        controller->clickButton("main","button_map");
         controller->checkMap(&l_result);
-        if(!l_result) {
+        if(!l_result){
             observer.value = l_result;
-            observer.comment = "unknown page";
+            observer.print = false;
             return;
         }
-        controller->clickButton("map","button_close");
+        controller->clickMapButton("sample","button_arena",&l_result);
+        if(!l_result){
+            observer.value = l_result;
+            observer.print = false;
+            return;
+        }
+        int k = 0;
+        stop_flag = false;
+        while(!stop_flag){
+            listPlayers.clear();
+            checkStage(&l_result);
+            if(!l_result) {
+                observer.value = l_result;
+                observer.print = false;
+                return;
+            }
+            if(currentStage == 0){
+                checkSettings(&l_result);
+                if(l_result){
+                    controller->clickButton("arena/main","button_start");
+                    confirmSquad(&l_result);
+                    if(!l_result) {
+                        observer.value = l_result;
+                        observer.print = false;
+                        return;
+                    }
+                    waitFind();
+                }
+                else{
+                    observer.value.error = m_Error::FAIL_INIT;
+                    observer.comment = "arena settings";
+                    emit controller->Logging("Задание прервано. Ошибка в настройках");
+                    return;
+                }
+            }
+            scanPlayers(&l_result);
+            if(!l_result){
+                observer.value = l_result;
+                observer.print = false;
+                return;
+            }
+            printPlayers();
+            attackPosition(settings->strategy.getPosition(listPlayers,currentStage,maxPower),&l_result);
+            if(!l_result){
+                observer.value = l_result;
+                observer.print = false;
+                return;
+            }
+            int tempCount = 0;
+            if(currentStage < 5)
+                do {
+                    controller->compareSample("arena/battles","sample_next","state_wait",&l_result,true);
+                    if(!l_result) {
+                        tempCount++;
+                        Sleep(100);
+                        if(tempCount == 10) {tempCount = 0; break;}
+                    }
+                    else Sleep(500);
+                } while(true);
+            else
+                do {
+                    controller->compareSample("arena/battles","sample_end","state_wait",&l_result,true);
+                    if(l_result) {
+                        k++;
+                        currentStage = 0;
+                        controller->clickButton("arena/battles","button_home");
+                        if(k == settings->count) stop_flag = true;
+                        break;
+                    }
+                    else Sleep(500);
+                } while(true);
+        }
+        do controller->compareSample("arena/main","sample","compare",&l_result,true);
+        while(!l_result);
+        controller->clickButton("arena/main","button_close");
+        controller->checkMainPage(&l_result);
+        if(!l_result){
+            controller->checkMap(&l_result);
+            if(!l_result) {
+                observer.value = l_result;
+                observer.comment = "unknown page";
+                return;
+            }
+            controller->clickButton("map","button_close");
+        }
+    } catch (const StopException &e) {
+        observer.value.error = m_Error::STOP_TASK;
+        observer.comment = e.what();
+        QThread::currentThread()->quit();
+        return;
+    } catch (const PauseException &e){
+        observer.value.error = m_Error::PAUSE_TASK;
+        observer.comment = e.what();
+        return;
     }
 }
 
@@ -224,12 +253,18 @@ void Arena::checkStage(ErrorList *result) {
         return;
     }
     else{
-        controller->compareSample("arena/battles","sample_end","state_wait",&l_result,true);
-        if(l_result) {
-            currentStage = 0;
-            controller->clickButton("arena/battles","button_home");
-            return;
-        }
+        int count = 0;
+        do {
+            controller->compareSample("arena/battles","sample_end","state_wait",&l_result,true);
+            if(l_result) {
+                currentStage = 0;
+                controller->clickButton("arena/battles","button_home");
+                Sleep(3000); // потом проверить мб 5к поставить
+                return;
+            }
+            Sleep(1000);
+            count++;
+        } while (count < 3);
     }
     controller->setMask("arena/battles/state_stage");
     controller->findObject();
@@ -271,7 +306,7 @@ void Arena::scanPlayers(ErrorList *result){
         else me.place = 0;
     }
     else me.place = 0;
-    emit controller->Logging("me x: " + QString::number(temp.x) + " y: " + QString::number(temp.y),false);
+    //emit controller->Logging("me x: " + QString::number(temp.x) + " y: " + QString::number(temp.y),false);
     //
     if(me.place == 0) {
         observer.value.error = m_Error::FAIL_INIT;
@@ -313,7 +348,7 @@ void Arena::scanPlayers(ErrorList *result){
         listPlayers.append(tempPlayer);
         do {
             controller->clickButton("battle/arena","button_next",&l_result);
-            Sleep(1000);
+            Sleep(1250); // 1000->1250
         } while(!l_result);
     }
     controller->clickEsc();
@@ -395,10 +430,10 @@ void Arena::checkPower(const Mat &object, ErrorList *result) {
         return;
     }
     Mat temp;
-    imwrite("G:/Coding/Photo/ocr/before_change.png", object);
+    //imwrite("G:/Coding/Photo/ocr/before_change.png", object);
     controller->changeColor(object,&temp,&l_result);
-    imwrite("G:/Coding/Photo/ocr/after_change.png", object);
-    imwrite("G:/Coding/Photo/ocr/after_temp.png", temp);
+    //imwrite("G:/Coding/Photo/ocr/after_change.png", object);
+    //imwrite("G:/Coding/Photo/ocr/after_temp.png", temp);
     if(!l_result) {
         observer.value = l_result;
         observer.print = false;
@@ -505,11 +540,40 @@ void Arena::checkBattleResult(bool *battle) {
         if(l_result) if(battle) *battle = false;
     }
     //
-    controller->clickEsc();
-    Sleep(300);
-    controller->skipEvent();
+    Sleep(500);
+    controller->checkEvent(&l_result);
+    if(l_result) controller->skipEvent();
+    controller->clickEsc(nullptr,2);
 }
-void Arena::setUnitsSet(ErrorList *result) {}
+void Arena::setUnitsSet(ErrorList *result) {
+    if(settings->modeSquad != 2) return;
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, controller, &Controller::LocalLogging);
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
+    controller->checkMainPage(&l_result);
+    if(l_result.error == m_Error::FAIL_INIT) {
+        controller->refreshMainPage(&l_result);
+        if(!l_result) {
+            observer.value = l_result;
+            observer.print = false;
+            return;
+        }
+    }
+    controller->findBarracks(&l_result);
+    if(!l_result){
+        observer.value = l_result;
+        observer.print = false;
+        return;
+    }
+    for(int i = 0; i < settings->squadSet.size();i++){
+        controller->setUnitSet(i,settings->squadSet[i],&l_result);
+        if(!l_result) {
+            observer.value = l_result;
+            observer.print = false;
+            return;
+        }
+    }
+}
 void Arena::savePlayerToBlackList(const Mat &player, int playerPower){}
 void Arena::savePlayerToWhileList(const Mat &player, int playerPower){}
 void Arena::loadLists(int playerID) {}

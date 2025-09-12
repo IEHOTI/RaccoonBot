@@ -10,6 +10,7 @@ public:
     ~Arena();
 
     void Start(ErrorList *result = nullptr) override;
+    void Pause() override;
     void Initialize(TaskSettings *setting, ErrorList *result = nullptr) override;
     void Stop() override;
     void checkPower(const Mat &object, ErrorList *result = nullptr) override;

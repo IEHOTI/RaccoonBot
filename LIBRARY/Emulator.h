@@ -1,9 +1,6 @@
 #ifndef EMULATOR_H
 #define EMULATOR_H
-
 #include "BotLib_global.h"
-#include "EmulatorComponents.h"
-#include "Error.h"
 
 class BOTLIB_EXPORT Emulator : public QObject{
     Q_OBJECT

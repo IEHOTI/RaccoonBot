@@ -1,8 +1,6 @@
 #ifndef LDPLAYER_H
 #define LDPLAYER_H
-
 #include "Emulator.h"
-#include <QObject>
 
 class BOTLIB_EXPORT LDPlayer : public Emulator
 {

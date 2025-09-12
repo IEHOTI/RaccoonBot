@@ -4,7 +4,6 @@
 #include "Structs.h"
 #include "Error.h"
 
-
 wstring GetCommandLineForHWND(HWND hwnd);
 
 wstring sanitizePath(const wstring &input, typeEmu type, int &instance);

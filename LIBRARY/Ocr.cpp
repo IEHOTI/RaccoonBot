@@ -4,6 +4,9 @@
 #include <opencv2/ml/ml.hpp>
 #include <fstream>
 #include <random>
+#include <QDir>
+#include <QFileInfoList>
+#include <QFileInfo>
 
 #include <QDebug>
 namespace
@@ -23,9 +26,12 @@ namespace
     }
 }
 
-Ocr::Ocr(const path &train, QObject *parent)
-    : QObject(parent), mTrainDir(train)
-{}
+Ocr::Ocr(QObject *parent): QObject(parent) {
+    mTrainDir = ":/numbers";
+}
+
+Ocr::~Ocr() = default;
+
 void Ocr::Initialize() {
     Train();
     mIsLoaded = true;
@@ -34,24 +40,37 @@ void Ocr::emitError(const QString &str) const {
     const_cast<Ocr*>(this)->sendError(str);
 }
 void Ocr::Train() {
-    array<vector<Mat>, 10> glyphs;
-    for (auto &it : directory_iterator(mTrainDir)) {
-        if (it.path().has_extension() &&it.path().extension() == ".png") {
-            const string file_name = it.path().filename().replace_extension().string();
-            if (!file_name.empty() &&file_name[0] >= '0' &&file_name[0] <= '9') glyphs[file_name[0] - '0'].emplace_back(imread((it.path()).generic_string(), IMREAD_GRAYSCALE));
-            else {
-                emitError("Не удалось открыть изображение с символом. Название отсутствует или неправильное: " + QString::fromStdString(file_name));
-                return;
-            }
+    std::array<std::vector<Mat>, 10> glyphs;
+
+    // Перебираем цифры 0–9
+    for (int d = 0; d <= 9; ++d) {
+        QString resourcePath = QString(":/numbers/%1.png").arg(d);
+        QImage imageOne(resourcePath);
+
+        if(imageOne.isNull()) {
+            emitError("empty numbers " + resourcePath);
+            return;
         }
+
+        imageOne = imageOne.convertToFormat(QImage::Format_Grayscale8);
+        // Определяем формат QImage и конвертируем в соответствующий Mat
+        Mat img(imageOne.height(), imageOne.width(), CV_8UC1, (void*)imageOne.constBits(), imageOne.bytesPerLine());
+
+        if (img.empty()) {
+            emitError("Не удалось загрузить " + resourcePath);
+            return;
+        }
+        glyphs[d].push_back(img.clone());
     }
 
     Mat array_chars;
     Mat array_images;
+
     for (size_t w = 0; w < glyphs.size(); ++w) {
         for (const auto &img : glyphs[w]) {
             Mat template_img;
             resize(img, template_img, gTemplateSymbolSize);
+
             Mat template_img_float;
             template_img.convertTo(template_img_float, CV_32FC1);
             Mat template_img_reshape = template_img_float.reshape(1, 1);
@@ -61,13 +80,14 @@ void Ocr::Train() {
         }
     }
 
-    scoped_lock lock(mKnearesMutex);
+    std::scoped_lock lock(mKnearesMutex);
     if (!array_images.empty()) {
         mKNearest = ml::KNearest::create();
         mKNearest->setDefaultK(1);
         if (!mKNearest->train(array_images, ml::ROW_SAMPLE, array_chars)) emitError("Не удалось обучить модель.");
     }
 }
+
 int Ocr::RecognizeDigit(const Mat &img) const {
     if (img.empty()) return false;
 
@@ -106,10 +126,9 @@ void Ocr::Recognize(const Mat &img,int &num) const {
         emitError("Пустое изображение на входе");
         return;
     }
-    //int temp = std::rand();
-    imwrite(("G:/Coding/Photo/ocr/recognize_before.png"), img);
+    //imwrite(("C:/Utilities/Coding/Photo/ocr/preprocessed_before.png"), img);
     auto preprocessed = Preprocess(img);
-    imwrite(("G:/Coding/Photo/ocr/recognize_after.png"), img);
+    //imwrite(("C:/Utilities/Coding/Photo/ocr/preprocessed_after.png"), img);
     auto glyphs = FindGlyphs(preprocessed);
 
     if (glyphs.empty()) {
@@ -123,11 +142,11 @@ void Ocr::Recognize(const Mat &img,int &num) const {
         auto digit = RecognizeDigit(Mat(preprocessed, glyphs[glyphs.size() - i - 1]));
 
         if (digit < 0) {
-            num = -1;
+            num = digit;
             emitError("Цифра не распознана");
             return;
         } else if (digit > 9) {
-            num = -1;
+            num = digit;
             emitError("Цифра не распознана");
             return;
         }

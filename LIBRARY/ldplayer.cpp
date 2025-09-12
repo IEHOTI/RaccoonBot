@@ -1,4 +1,5 @@
 #include "ldplayer.h"
+#include "EmulatorComponents.h"
 
 LDPlayer::LDPlayer(QObject *parent) : Emulator(parent) {cmd = L""; instance = 0;}
 

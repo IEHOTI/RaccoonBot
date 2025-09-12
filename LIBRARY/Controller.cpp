@@ -5,9 +5,11 @@ Controller::Controller(QObject *parent) : QObject(parent) {
     m_game = 0;
     m_rect = { 0,0,0,0 };
     mainPath = ":/pages";
+    isWorking = false;
 }
 
 void Controller::findObject(const Mat *finder, ErrorList *result) {
+    QCoreApplication::processEvents();
     if(finder != nullptr) finder->copyTo(m_mask);
     ErrorObserver observer(result);
     connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
@@ -35,6 +37,7 @@ void Controller::findObject(const Mat *finder, ErrorList *result) {
 }
 
 void Controller::compareObject(double rightVal, const Mat *object, const Mat *sample, ErrorList *result) {
+    QCoreApplication::processEvents();
     ErrorObserver observer(result);
     connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
 
@@ -141,6 +144,7 @@ void Controller::saveImage(const QString &savePath, const Mat &saveImage, ErrorL
 }
 
 void Controller::Screenshot() {
+    QCoreApplication::processEvents();
     int width = 900;
     int height = 600;
     HDC hdcWindow = GetDC(m_game);
@@ -166,6 +170,7 @@ void Controller::Screenshot() {
 }
 
 void Controller::convertImage(const QImage &imageOne, Mat *imageTwo, ErrorList *result) {
+    QCoreApplication::processEvents();
     ErrorObserver observer(result);
     connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
     // Проверка входных данных
@@ -226,6 +231,7 @@ void Controller::setMatObject(const Mat &image, ErrorList *result) {
 }
 
 void Controller::changeColor(const Mat &before, Mat *after, ErrorList *result) {
+    QCoreApplication::processEvents();
     ErrorObserver observer(result);
     connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
     if (before.empty()) {
@@ -348,6 +354,7 @@ Rect& Controller::getRect() {
 }
 
 void Controller::isEmpty(ErrorList *result) {
+    QCoreApplication::processEvents();
     ErrorObserver observer(result);
     connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
 
@@ -358,6 +365,7 @@ void Controller::isEmpty(ErrorList *result) {
 }
 
 void Controller::isValidSize(ErrorList *result) {
+    QCoreApplication::processEvents();
     ErrorObserver observer(result);
     connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
 
@@ -373,6 +381,7 @@ void Controller::isValidSize(ErrorList *result) {
 }
 
 void Controller::isValidPos(ErrorList *result) {
+    QCoreApplication::processEvents();
     ErrorObserver observer(result);
     connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
 
@@ -385,11 +394,12 @@ void Controller::isValidPos(ErrorList *result) {
 }
 
 void Controller::click(ErrorList *result, int count, int delay) {
+    QCoreApplication::processEvents();
     ErrorObserver observer(result);
     connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
 
     ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
-    Screenshot();//??
+    Screenshot();
     Mat before,after;
     m_object.copyTo(before);
     Rect click = m_rect;
@@ -420,11 +430,12 @@ void Controller::click(ErrorList *result, int count, int delay) {
 }
 
 void Controller::clickPosition(const Rect &point, ErrorList *result, int count, int delay) {
+    QCoreApplication::processEvents();
     ErrorObserver observer(result);
     connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
 
     ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
-    Screenshot();//??
+    Screenshot();
     Mat before,after;
     m_object.copyTo(before);
     int x = 0;
@@ -454,11 +465,11 @@ void Controller::clickPosition(const Rect &point, ErrorList *result, int count, 
 }
 
 void Controller::clickSwipe(const Rect &start, const Rect &finish, ErrorList *result) {
+    QCoreApplication::processEvents();
     ErrorObserver observer(result);
     connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
     ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
-
-    Screenshot();//??
+    Screenshot();
     Mat before,after;
     m_object.copyTo(before);
 
@@ -561,7 +572,7 @@ void Controller::clickMapButton(const QString &mapName, const QString &buttonNam
     int x = 0;
     Rect start = {690,290,0,0};
     Rect finish = {100,290,0,0};
-    while (x < 2){//right swipe
+    while (x < 3){//right swipe
         compareSample("map",mapName,buttonName,&l_result,true);
         if(!l_result) {
             clickSwipe(start,finish);
@@ -571,7 +582,7 @@ void Controller::clickMapButton(const QString &mapName, const QString &buttonNam
     }
     if(!l_result) {//left swipe
         x = 0;
-        while(x < 4){
+        while(x < 3){
             compareSample("map",mapName,buttonName,&l_result,true);
             if(!l_result) {
                 clickSwipe(finish,start);
@@ -588,7 +599,7 @@ void Controller::clickMapButton(const QString &mapName, const QString &buttonNam
     else click(result,count,delay);
 }
 
-void Controller::clickEsc(ErrorList *result) {
+void Controller::clickEsc(ErrorList *result, int count) {
     ErrorObserver observer(result);
     connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
 
@@ -602,21 +613,27 @@ void Controller::clickEsc(ErrorList *result) {
     Sleep(15);
     SendMessage(m_game, WM_SETCURSOR, (WPARAM)m_game, MAKELPARAM(HTCLIENT, WM_LBUTTONDOWN));
     Sleep(15);
-    PostMessage(m_game, WM_KEYDOWN, VK_ESCAPE, MapVirtualKey(VK_ESCAPE, MAPVK_VK_TO_VSC));
-    Sleep(100);
-    PostMessage(m_game, WM_KEYUP, VK_ESCAPE, MapVirtualKey(VK_ESCAPE, MAPVK_VK_TO_VSC));
-    Sleep(500);
-    Screenshot();
-    m_object.copyTo(after);
-    compareObject(0, &after,&before,&l_result);
-    if(!l_result) return;
+    int x = 0;
+    do{
+        after.release();
+        PostMessage(m_game, WM_KEYDOWN, VK_ESCAPE, MapVirtualKey(VK_ESCAPE, MAPVK_VK_TO_VSC));
+        Sleep(150);
+        PostMessage(m_game, WM_KEYUP, VK_ESCAPE, MapVirtualKey(VK_ESCAPE, MAPVK_VK_TO_VSC));
+        Sleep(100);
+        Screenshot();
+        m_object.copyTo(after);
+        compareObject(0, &after,&before,&l_result);
+        if(!l_result) return;
+        else x++;
+        Sleep(150);
+    } while (x < count);
     //Если цикл вышел сюда, то значит что клики прошли а изображение не поменялось
     observer.value.warning = m_Warning::FAIL_CLICK;
     observer.comment = "Esc";
     return;
 }
 
-void Controller::clickReturn(ErrorList *result) {
+void Controller::clickReturn(ErrorList *result, int count) {
     ErrorObserver observer(result);
     connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
 
@@ -630,14 +647,19 @@ void Controller::clickReturn(ErrorList *result) {
     Sleep(15);
     SendMessage(m_game, WM_SETCURSOR, (WPARAM)m_game, MAKELPARAM(HTCLIENT, WM_LBUTTONDOWN));
     Sleep(15);
-    PostMessage(m_game, WM_KEYDOWN, VK_RETURN, 0);
-    Sleep(100);
-    PostMessage(m_game, WM_KEYUP, VK_RETURN, 0);
-    Sleep(500);
-    Screenshot();
-    m_object.copyTo(after);
-    compareObject(0.0001, &after,&before,&l_result);
-    if(!l_result) return;
+    int x = 0;
+    do{
+        PostMessage(m_game, WM_KEYDOWN, VK_RETURN, 0);
+        Sleep(150);
+        PostMessage(m_game, WM_KEYUP, VK_RETURN, 0);
+        Sleep(100);
+        Screenshot();
+        m_object.copyTo(after);
+        compareObject(0, &after,&before,&l_result);
+        if(!l_result) return;
+        else x++;
+        Sleep(150);
+    } while (x < count);
     //Если цикл вышел сюда, то значит что клики прошли а изображение не поменялось
     observer.value.warning = m_Warning::FAIL_CLICK;
     observer.comment = "Return-Enter";
@@ -647,6 +669,7 @@ void Controller::clickReturn(ErrorList *result) {
 //void Controller::Initialize(userProfile *user, ErrorList *result){}
 
 void Controller::userInitialize(userProfile *user, ErrorList *result) {
+    QCoreApplication::processEvents();
     ErrorObserver observer(result);
     connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
 
@@ -711,11 +734,16 @@ void Controller::userInitialize(userProfile *user, ErrorList *result) {
         observer.comment = "scan user_power";
         return;
     }
-    //////
-    user->state_premium = true;
-    user->state_ads = false;
-    user->count_units = 6;//потом сделать адекватное распознавание после получения инфы о подписке, условно
+    compareSample("user","sample","state_prem",&l_result);
+    if(l_result) user->state_premium = false;
+    else user->state_premium = true;
+
+    compareSample("user","sample","state_ads",&l_result);
+    if(l_result) user->state_ads = false;
+    else user->state_ads = true;
+    ///
     user->leftover_time = "9999999 days for Raccoons";
+    ////
     clickButton("user","button_close");
 }
 
@@ -738,83 +766,133 @@ void Controller::setMainPath(const QString &path) {
 }
 
 void Controller::Start(userProfile *user, ErrorList *result) {
+    isWorking = true;
     emit Logging("Бот запущен");
     ErrorObserver observer(result);
     connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
     ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
-    if(!FindEmulator(user->emulator_name,&m_main,&m_game)) {
-        observer.value.error = m_Error::FAIL_INIT;
-        observer.comment = "find emulator";
-        return;
-    }
-    char name[256];
-    GetClassNameA(m_main, name, sizeof(name));
-    if (strcmp(name, "LDPlayerMainFrame") == 0) {
-        user->emulatorType = typeEmu::ld_player;
-        Emulator *emulator = new LDPlayer(this);
-        emulator->Initialize(&m_main);
-        emit emulatorCreated(emulator);
-    }
-    else {
-        observer.value.error = m_Error::FAIL_INIT;
-        observer.comment = "recognize emulator type";
-        return;
-    }
-    do{
-        checkPreMainPage();
-        checkMainPage(&l_result);
-        if(!l_result){
-            fixGameError(&l_result);
+    try {
+        if(!FindEmulator(user->emulator_name,&m_main,&m_game)) {
+            observer.value.error = m_Error::FAIL_INIT;
+            observer.comment = "find emulator";
+            return;
+        }
+        QCoreApplication::processEvents();
+        char name[256];
+        GetClassNameA(m_main, name, sizeof(name));
+        if (strcmp(name, "LDPlayerMainFrame") == 0) {
+            user->emulatorType = typeEmu::ld_player;
+            Emulator *emulator = new LDPlayer(this);
+            emulator->Initialize(&m_main);
+            emit emulatorCreated(emulator);
+        }
+        else {
+            observer.value.error = m_Error::FAIL_INIT;
+            observer.comment = "recognize emulator type";
+            isWorking = false;
+            return;
+        }
+        QCoreApplication::processEvents();
+        do{
+            checkPreMainPage();
+            checkMainPage(&l_result);
             if(!l_result){
-                observer.value.error = m_Error::FAIL_INIT;
-                observer.comment = "find mainPage";
+                fixGameError(&l_result);
+                if(!l_result){
+                    observer.value.error = m_Error::FAIL_INIT;
+                    observer.comment = "find mainPage";
+                    isWorking = false;
+                    return;
+                }
+                else l_result.warning = m_Warning::UNKNOWN;
+            }
+        }while(!l_result);
+        do{
+            checkSettings(&l_result);
+            if(!l_result){
+                fixGameError(&l_result);
+                if(!l_result){
+                    observer.value.error = m_Error::FAIL_INIT;
+                    observer.comment = "find settings";
+                    isWorking = false;
+                    return;
+                }
+                else l_result.warning = m_Warning::UNKNOWN;
+            }
+        }while(!l_result);
+        userInitialize(user,&l_result);
+        if(!l_result) {
+            observer.value.error = m_Error::FAIL_INIT;
+            observer.print = false;
+            isWorking = false;
+            return;
+        }
+        refreshMainPage(&l_result);
+        if(!l_result) {
+            observer.value = l_result;
+            observer.print = false;
+            isWorking = false;
+            return;
+        }
+        findBarracks(&l_result);
+        if(l_result) {
+            entryBarracks(&l_result);
+            if(l_result){
+                scanSquadCount(user,&l_result);
+                if(!l_result) {
+                    observer.value = l_result;
+                    observer.print = false;
+                    isWorking = false;
+                    return;
+                }
+            }
+            else {
+                observer.value = l_result;
+                observer.print = false;
+                isWorking = false;
                 return;
             }
         }
-    }while(!l_result);
-    do{
-        checkSettings(&l_result);
-        if(!l_result){
-            fixGameError(&l_result);
-            if(!l_result){
-                observer.value.error = m_Error::FAIL_INIT;
-                observer.comment = "find settings";
-                return;
-            }
+        else {
+            observer.value = l_result;
+            observer.print = false;
+            isWorking = false;
+            return;
         }
-    }while(!l_result);
-    userInitialize(user,&l_result);
-    if(!l_result) {
-        observer.value.error = m_Error::FAIL_INIT;
-        observer.print = false;
+        isWorking = false;
+        emit endStart();
+    } catch (const StopException &e) {
+        observer.value.error = m_Error::STOP_TASK;
+        observer.comment = e.what();
+        Logging("Бот остановлен");
+        CleanUp();
+        isWorking = false;
+        QThread::currentThread()->quit();
+        return;
+    } catch (const PauseException &e){
+        observer.value.error = m_Error::PAUSE_TASK;
+        observer.comment = e.what();
         return;
     }
-    //refreshMainPage(&l_result); // poka chto
-    // if(!l_result) {
-    //     err.value = false;
-    //     err.errorMessage = "Не получилось сбросить положение экрана(.";
-    //     return;
-    // }
-    //пока что временно это всё, потом добавить
-    emit endStart();
 }
 
-void Controller::Stop(ErrorList *result) {
-    ErrorObserver observer(result);
-    connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
-    ///
-    if(m_main == NULL) {
-        observer.value.error = m_Error::NO_ACTIVE_EMULATOR;
-        observer.comment = "m_main null";
-        return;
-    }
-    PostMessage(m_main,WM_CLOSE,0,0);
+void Controller::Stop() {
+    if(isWorking) throw StopException();
+    else QThread::currentThread()->quit();
+}
+
+void Controller::CleanUp(){
     m_main = 0;
     m_game = 0;
+    m_object.release();
+    m_mask.release();
+    m_sample.release();
+    m_rect = {0,0,0,0};
 }
 
 void Controller::LocalLogging(const QString &msg) {
     //getGameError();//пока что пустой
+    QCoreApplication::processEvents();
     emit errorLogging(msg);
 }
 
@@ -995,55 +1073,62 @@ void Controller::checkSettings(ErrorList *result) {
             observer.print = false;
             return;
         }
-    } else clickEsc();
+    } else clickEsc(nullptr,2);
 }
 
 void Controller::refreshMainPage(ErrorList *result) {
-    // emit errorLogging("===Обновление главной страницы===");
-    // m_error err(result);
-    // connect(&err, &m_Error::Logging, this, &Controller::LocalLogging);
-    // ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
-    // checkMainPage(&l_result);
-    // if(!l_result) {
-    //     err.value = false;
-    //     err.errorMessage = "Ошибка: не на главное странице.";
-    //     return;
-    // }
-    // clickButton("main","button_friends",&l_result);
-    // if(!l_result){
-    //     err.value = false;
-    //     err.errorMessage = "Ошибка: не удалось нажать на кнопку друзей.";
-    //     return;
-    // }
-    // int x = 0;
-    // do {
-    //     compareSample("top_players","sample","compare",&l_result,true);
-    //     if(l_result) break;
-    //     else {
-    //         x++;
-    //         Sleep(500);
-    //     }
-    // } while(x < 100);
-    // if(x == 100) {
-    //     err.value = false;
-    //     err.errorMessage = "Ошибка: не прогрузился список топ-игроков.";
-    //     return;
-    // }
-    // Sleep(500);//?
-    // clickPosition(Rect(480,200,0,0));
-    // Sleep(500);
-    // clickPosition(Rect(480,200,0,0));
-    // do {
-    //     compareSample("top_players","sample_top","compare_top",&l_result,true);
-    //     Sleep(500);
-    // } while(l_result);
-    // clickEsc();
-    // checkMainPage(&l_result);
-    // if(!l_result){
-    //     err.value = false;
-    //     err.errorMessage = "Ошибка сброса положения экрана.";
-    //     return;
-    // }
+    emit errorLogging("===Обновление главной страницы===");
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
+
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
+    checkMainPage(&l_result);
+    if(!l_result) {
+        observer.value = l_result;
+        observer.print = false;
+        return;
+    }
+    clickButton("main","button_friends",&l_result);
+    if(!l_result){
+        observer.value = l_result;
+        observer.print = false;
+        return;
+    }
+    int x = 0;
+    do {
+        compareSample("top_players","sample","compare",&l_result,true);
+        if(l_result) break;
+        else x++;
+        Sleep(500);
+    } while(x < 100);
+    if(x == 100) {
+        observer.value.warning = m_Warning::FAIL_COMPARE;
+        observer.comment = "top_players";
+        return;
+    }
+    do{
+        compareSample("top_players","sample_visit","compare_visit",&l_result,true);
+        if(l_result) click();
+        else {
+            clickPosition(Rect(480,200,0,0));
+            Sleep(500);
+            compareSample("load","sample","compare",&l_result,true);
+            //if l_result break;
+        }
+    } while(!l_result);
+    do {
+        compareSample("top_players","sample_top","compare_top",&l_result,true);
+        if(!l_result) Sleep(500);
+    } while(!l_result);
+    clickEsc();
+    Sleep(500);
+    checkLoading();
+    checkMainPage(&l_result);
+    if(!l_result){
+        observer.value = l_result;
+        observer.print = false;
+        return;
+    }
 }
 
 void Controller::skipEvent() {
@@ -1128,8 +1213,188 @@ void Controller::fixGameError(ErrorList *result) {
     return;
 }
 
-void Controller::findBarracks(ErrorList *result) {}
+void Controller::findBarracks(ErrorList *result) {
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
+    compareSample("squad/main","sample","compare",&l_result,true);
+    if(!l_result){
+        observer.value = l_result;
+        observer.print = false;
+        return;
+    }
+}
 
-void Controller::entryBarracks(ErrorList *result) {}
+void Controller::entryBarracks(ErrorList *result) {
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
+    click();
+    int x = 0;
+    do{
+        compareSample("squad/main","sample_info","compare_info",&l_result,true);
+        if(!l_result){
+            compareSample("squad/main","sample_info","compare_pals",&l_result);
+            if(!l_result){
+                x++;
+                if(x == 10) {
+                    observer.value.error = m_Error::FAIL_INIT;
+                    observer.comment = "2 stage of compare info";
+                    return;
+                }
+                Sleep(1000);
+            }
+            else clickButton("squad/main","button_info");
+        } else click();
+    } while(!l_result);
+    x = 0;
+    do {
+        compareSample("squad/main","sample_barrack","compare_barrack",&l_result,true);
+        if(!l_result){
+            x++;
+            if(x == 50) {
+                observer.value.warning = m_Warning::FAIL_COMPARE;
+                observer.comment = "barrack";
+                return;
+            }
+            else Sleep(500);
+        }
+    } while (!l_result);
+}
 
-void Controller::scanSquadCount(userProfile *user, ErrorList *result) {}
+void Controller::scanSquadCount(userProfile *user, ErrorList *result) {
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
+
+    setMask("squad/main/count");
+    findObject();
+    Mat temp;
+    changeColor(cutImage(),&temp,&l_result);
+    if(!l_result){
+        observer.value = l_result;
+        observer.print = false;
+        return;
+    }
+    int number = 0;
+    emit Recognize(temp,number);
+    if(number < 2) {
+        observer.value.warning = m_Warning::FAIL_RECOGNIZE;
+        observer.comment = "unit count";
+        return;
+    }
+    user->count_units = number;
+    clickEsc();
+    clickEsc();
+}
+
+void Controller::setUnitSet(int index, typeSet set, ErrorList *result) {
+    if(set == typeSet::NOT_TOUCH) return;
+    ErrorObserver observer(result);
+    connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
+    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
+    if((index < 1) && (index > 8)) {
+        observer.value.error = m_Error::FAIL_INIT;
+        observer.comment = "unit index out of range";
+        return;
+    }
+
+    QString pagePath = "squad/main/unit";
+    QVector<int> unitPos = {400,490,330,560,280,610,240,650};
+    int yPos = 320;
+
+    clickPosition(Rect(unitPos[index],yPos,0,0),&l_result);
+    if(!l_result){
+        observer.value = l_result;
+        observer.print = false;
+        return;
+    }
+    int x = 0;
+    do{
+        compareSample(pagePath,"sample","compare",&l_result,true);
+        if(!l_result) {
+            x++;
+            if(x == 50) {
+                observer.value.warning = m_Warning::FAIL_COMPARE;
+                observer.comment = "unit sample";
+                return;
+            }
+            Sleep(500);
+        }
+    } while(!l_result);
+
+    clickButton(pagePath,"button_set");
+    Sleep(300);
+    x = 0;
+    do{
+        compareSample(pagePath,"sample_set","compare_set",&l_result,true);
+        if(!l_result) {
+            x++;
+            if(x == 10){
+                observer.value.warning = m_Warning::FAIL_COMPARE;
+                observer.comment = "unit set sample";
+                return;
+            }
+            Sleep(1000);
+        }
+    } while(!l_result);
+    x = 0;
+    switch (set) {
+    case typeSet::UNEQUIP : {
+        compareSample(pagePath,"sample_set_3","state_unequip",&l_result);
+        if(l_result) click();
+        clickEsc();
+        break;
+    }
+    case typeSet::SET_1 : {
+        compareSample(pagePath,"sample_set_0","state_set",&l_result);
+        if(l_result) {
+            Logging("У " + QString::number(index) + " бойца отсутсвуют наборы вещей.",false);
+            break;
+        }
+        clickButton(pagePath,"button_set_1");
+    }
+    case typeSet::SET_2 : {
+        compareSample(pagePath,"sample_set_0","state_set",&l_result);
+        if(l_result) {
+            Logging("У " + QString::number(index) + " бойца отсутсвуют набор вещей.",false);
+            break;
+        }
+        compareSample(pagePath,"sample_set_1","state_set",&l_result);
+        if(l_result) {
+            Logging("У " + QString::number(index) + " бойца отсутсвует второй набор вещей.",false);
+            break;
+        }
+        clickButton(pagePath,"button_set_2");
+    }
+    case typeSet::SET_3 : {
+        compareSample(pagePath,"sample_set_3","state_set",&l_result);
+        if(l_result) {
+            Logging("У " + QString::number(index) + " бойца отсутсвует третий набор вещей.",false);
+            break;
+        }
+        clickButton(pagePath,"button_set_3");
+    }
+    default: {
+        do{
+            compareSample(pagePath,"sample_confirm","compare_confirm",&l_result,true);
+            if(!l_result) {
+                x++;
+                if(x == 10){
+                observer.value.warning = m_Warning::FAIL_COMPARE;
+                observer.comment = "unit set confirm";
+                return;
+                }
+                Sleep(1000);
+            }
+        } while(!l_result);
+        clickButton(pagePath,"button_confirm");
+        Sleep(300);
+        compareSample(pagePath,"confirm_warning","compare_confirm",&l_result,true);
+        if(l_result) clickButton(pagePath,"button_yes");
+        break;
+    }
+    }
+    Sleep(500);
+    clickEsc();
+}
