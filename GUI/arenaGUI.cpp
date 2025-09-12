@@ -135,23 +135,41 @@ void MainWindow::createArenaTab(QWidget *tab,int index) {
     QIntValidator* foodValid = new QIntValidator(0, 2000000,tab);
     foodLine->setValidator(foodValid);
 
-    connect(this,&MainWindow::getArenaSettings,this,[=](){
-        userProfile *tempUser = listData[index]->user;
+    ////////////
+    QWidget *unitFirstWidget = new QWidget(tab);
+    createUnitsWidget(tab,unitFirstWidget);
+    unitFirstWidget->setEnabled(false);
+
+    connect(barrackButton,&QRadioButton::toggled, this, [=](bool checked){
+        if(checked) unitFirstWidget->setEnabled(true);
+        else unitFirstWidget->setEnabled(false);
+    });
+    ///////
+
+    int fixedIndex = index;
+    connect(this,&MainWindow::getArenaSettings,this,[=](int local_index){
+        if(local_index != fixedIndex) return;
+        tab->setEnabled(false);
+        userProfile *tempUser = listData[fixedIndex]->user;
         ArenaSettings *settings = new ArenaSettings();
         settings->history_power = tempUser->history_power;
         QString str = countBox->currentText();
         if (str == "∞") settings->count = -1;
         else settings->count = str.toInt();
         settings->premiumStatus = tempUser->state_premium;
-        if(adsTask->isChecked()) settings->watchADS = true;
-        else settings->watchADS = false;
-        //
+        settings->watchADS = adsTask->isChecked();
         if(bestButton->isChecked()) settings->modeSquad = 0;
         else if(lastButton->isChecked()) settings->modeSquad = 1;
-        else if(barrackButton->isChecked()) settings->modeSquad = 2;
+        else if(barrackButton->isChecked()) {
+            settings->modeSquad = 2;
+            for(int i = 0; i < 8; i++) {
+                typeSet temp;
+                emit getUnitSet(tab,i,temp);
+                settings->squadSet.append(temp);
+            }
+        }
         settings->modeTicket = resourceBox->currentIndex();
-        if(chestTask->isChecked()) settings->openChest = true;
-        else settings->openChest = false;
+        settings->openChest = chestTask->isChecked();
         int temp = foodLine->text().remove(' ').toInt();
         if(temp > 2000000) temp = 2000000;
         else if(temp < 0) temp = 0;
@@ -161,9 +179,7 @@ void MainWindow::createArenaTab(QWidget *tab,int index) {
         else if(tempp < 0.0) tempp = 0.0;
         settings->rangePower = tempp;
         switch (algorithmBox->currentIndex()){
-        case 0:{
-            break;
-        }
+        case 0: break;
         case 1:{
             settings->strategy.fourth = true;
             settings->strategy.fives = true;
@@ -184,25 +200,23 @@ void MainWindow::createArenaTab(QWidget *tab,int index) {
         }
         default:{
             //err
-            emit listData[index]->controller->errorLogging("Ошибка установки алгоритма арены. Установлен стандарт.");
+            emit listData[fixedIndex]->controller->errorLogging("Ошибка установки алгоритма арены. Установлен стандарт.");
             break;
         }
         }
-        if(BLBox->isChecked()) settings->strategy.black = true;
-        else settings->strategy.black = false;
-        if(WLBox->isChecked()) settings->strategy.white = true;
-        else settings->strategy.white = false;
+        settings->strategy.black = BLBox->isChecked();
+        settings->strategy.white = WLBox->isChecked();
 
-        Arena *task = new Arena(listData[index]->controller);
-        task->moveToThread(botThreads[index]);
-        QMetaObject::invokeMethod(task, [task, parent=listData[index].data()](){
+        Arena *task = new Arena(listData[fixedIndex]->controller);
+        task->moveToThread(botThreads[fixedIndex]);
+        QMetaObject::invokeMethod(task, [task, parent=listData[fixedIndex].data()](){
             task->setParent(parent);
         }, Qt::QueuedConnection);
         connect(this,&MainWindow::initArena,task,&Arena::Initialize,Qt::QueuedConnection);
         emit initArena(settings);
-        listData[index]->listTasks.append(task);
-        listData[index]->listSettings.append(settings);
+        listData[fixedIndex]->listTasks.append(task);
+        listData[fixedIndex]->listSettings.append(settings);
 
-        tab->setEnabled(true);//?
+        tab->setEnabled(true);
     });
 }

@@ -35,6 +35,7 @@
 #include "cathedral.h"
 #include "generaldata.h"
 #include "arena.h"
+#include "lighthouse.h"
 
 class MainWindow : public QMainWindow
 {
@@ -51,7 +52,7 @@ public:
     //tab
     void createGUI();
     void createLoggerTab(QWidget *tab, int index);
-
+    void createUnitsWidget(QWidget *tab, QWidget* widget);
     //main
     void createMainTab(QWidget *tab, int index);
     void getSettings(int index);
@@ -65,25 +66,34 @@ public:
 
     //arena
     void createArenaTab(QWidget *tab, int index);
+
+    //lighthouse
+    void createLighthouseTab(QWidget *tab, int index);
 signals:
     //tab
+    void getUnitSet(QWidget *tab, int index, typeSet &set);
+    void getUnits();
 
     //main
-    void saveTaskQueue(); // main->general
     void startBot();
     void startController(userProfile *user, ErrorList *result = nullptr);
     //general
 
     //arena
     void initArena(TaskSettings *setting, ErrorList *result = nullptr);
-    void getArenaSettings();
+    void getArenaSettings(int local_index);
 
     //cathedral
     void initCathedral(TaskSettings *setting, ErrorList *result = nullptr);
-    void getCathedralSettings();//signal from [=]slot on page
+    void getCathedralSettings(int local_index);
+
+    //lighthouse
+    void initLighthouse(TaskSettings *setting, ErrorList *result = nullptr);
+    void getLighthouseSettings(int local_index);
 private:
     QWidget *mainWidget;
     QList<QString> nameTasks;
+    QList<QString> usedEmulators;
 
     QTabWidget *tabWidget;
 

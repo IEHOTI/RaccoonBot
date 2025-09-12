@@ -9,19 +9,31 @@ MainWindow::MainWindow(QWidget *parent)
     setFixedSize(390,400);
     setCentralWindow(390,400);
 
+    mainWidget = new QWidget(this);
+    setCentralWidget(mainWidget);
+    tabWidget = new QTabWidget(mainWidget);
+    QVBoxLayout *layout = new QVBoxLayout(mainWidget);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(0);
+    layout->addWidget(tabWidget);
+
+    nameTasks << "Арена" << "Башня" << "Бухта" << "Грабежи" << "Ивент"
+              << "Колизей" << "Маяк" << "Подземелье" << "Портал" << "Разное"
+              << "Собор";
+    for(int i = 0, n = nameTasks.size(); i < n; i++) hashTask[nameTasks[i]] = i;
     preProcessingData();
     preProcessingMenuBar();
 }
 
 MainWindow::~MainWindow() {
     //аккуратно следить за памятью
-    QThread* mainThread = QCoreApplication::instance()->thread();
+    QThread *mainThread = QCoreApplication::instance()->thread();
 
     for (int i = 0; i < listData.size(); ++i) {
         auto& data = listData[i];
         if (!data) continue;
 
-        QThread* currentThread = data->thread();
+        QThread *currentThread = data->thread();
         // Переносим объект обратно в главный поток, если он не там
         if (currentThread != mainThread) {
             QMetaObject::invokeMethod(data.data(), [data]() {
@@ -31,7 +43,7 @@ MainWindow::~MainWindow() {
     }
 
     // Завершаем потоки
-    for (QThread* thread : botThreads) {
+    for (QThread *thread : botThreads) {
         if (!thread)
             continue;
 
@@ -46,7 +58,7 @@ MainWindow::~MainWindow() {
 }
 
 void MainWindow::setCentralWindow(int width, int height){
-    QScreen* screen = QGuiApplication::primaryScreen();
+    QScreen *screen = QGuiApplication::primaryScreen();
     QRect screenGeometry = screen->geometry();
 
     int x = (screenGeometry.width() - width) / 2;
@@ -56,28 +68,23 @@ void MainWindow::setCentralWindow(int width, int height){
 }
 
 void MainWindow::preProcessingData() {
-    mainWidget = new QWidget(this);
-    setCentralWidget(mainWidget);
-    nameTasks << "Арена" << "Башня" << "Бухта" << "Грабежи" << "Ивент"
-              << "Колизей" << "Маяк" << "Подземелье" << "Портал" << "Разное"
-              << "Собор";
-    for(int i = 0, n = nameTasks.size(); i < n; i++) hashTask[nameTasks[i]] = i;
     //в будущем загрузка сохраненных вкладок и прочего, пока что всегда новое
-    tabWidget = new QTabWidget(mainWidget);
-    QVBoxLayout* layout = new QVBoxLayout(mainWidget);
-    layout->setContentsMargins(0, 0, 0, 0);
-    layout->setSpacing(0);
-    layout->addWidget(tabWidget);
-
     tempData = QSharedPointer<GeneralData>::create();
 
     Controller *controller = new Controller(tempData.data());
     QTextEdit *errorLog = new QTextEdit();
-    Ocr *ocr = new Ocr((path)"G:\\Coding\\Photo\\test\\numbers",tempData.data());
+    Ocr *ocr = new Ocr(tempData.data());
     ocr->Initialize();
     userProfile *user = new userProfile();
     QThread *thread = new QThread(this);
     thread->start();
+
+    QFont logFont;
+    logFont.setFamily("Consolas");
+    logFont.setPointSize(10);
+    logFont.setStyleHint(QFont::Monospace);
+    logFont.setFixedPitch(true);
+    errorLog->setFont(logFont);
     errorLog->resize(600,600);
     errorLog->show();
     //errorLog->hide();
@@ -91,28 +98,34 @@ void MainWindow::preProcessingData() {
     listData.append(tempData);
     botThreads.append(thread);
     listErrorLogs.append(errorLog);
-    connect(controller,&Controller::errorLogging,errorLog,&QTextEdit::append,Qt::QueuedConnection);
+    //connect(controller,&Controller::errorLogging,errorLog,&QTextEdit::append,Qt::QueuedConnection);
+    connect(controller, &Controller::errorLogging, errorLog, [=](const QString &text) {
+        errorLog->append(text);
+        QStringList lines = errorLog->toPlainText().split("\n");
+        if (lines.size() > 1000) {
+            errorLog->clear();
+            errorLog->append("=== Лог очищен автоматически ===");
+        }
+    }, Qt::QueuedConnection);
     connect(controller,&Controller::Recognize,ocr,&Ocr::Recognize);
     connect(controller,&Controller::emulatorCreated,tempData.data(),&GeneralData::saveEmulator,Qt::QueuedConnection);
-    connect(this,&MainWindow::startController,controller,&Controller::Start,Qt::QueuedConnection);
-    connect(this,&MainWindow::startBot,tempData.data(),&GeneralData::executeTasks,Qt::QueuedConnection);
     connect(ocr,&Ocr::sendError,errorLog,&QTextEdit::append,Qt::QueuedConnection);
     createGUI();
     this->show();
 }
 
 void MainWindow::preProcessingMenuBar() {
-
     // Меню-бары
-    QMenuBar* menuBar = new QMenuBar(mainWidget);
+    QMenuBar *menuBar = new QMenuBar(mainWidget);
 
     //Аккаунты
-    QMenu* generalMenu = new QMenu("Главная", mainWidget);
-    QAction* addAccountAction = new QAction("Добавить аккаунт", mainWidget);
-    QAction* removeAccountAction = new QAction("Удалить аккаунт", mainWidget);
-    QAction* statisticAccountAction = new QAction("Статистика",mainWidget);
-    QAction* saveAccountSetting = new QAction("Сохранить настройки",mainWidget);
-    QAction* loadAccountSetting = new QAction("Загрузить настройки",mainWidget);
+    QMenu *generalMenu = new QMenu("Главная", mainWidget);
+    QAction *addAccountAction = new QAction("Добавить аккаунт", mainWidget);
+    connect(addAccountAction, &QAction::triggered,this,&MainWindow::preProcessingData);
+    QAction *removeAccountAction = new QAction("Удалить аккаунт", mainWidget);
+    QAction *statisticAccountAction = new QAction("Статистика",mainWidget);
+    QAction *saveAccountSetting = new QAction("Сохранить настройки",mainWidget);
+    QAction *loadAccountSetting = new QAction("Загрузить настройки",mainWidget);
 
     generalMenu->addAction(addAccountAction);
     generalMenu->addAction(removeAccountAction);
@@ -121,18 +134,18 @@ void MainWindow::preProcessingMenuBar() {
     generalMenu->addAction(loadAccountSetting);
 
     //О программе
-    QMenu* aboutProgram = new QMenu("О программе",mainWidget);
+    QMenu *aboutProgram = new QMenu("О программе",mainWidget);
 
     //Инструменты бота
-    QMenu* botMenu = new QMenu("Инструменты бота",this);
-    QAction* clearLog = new QAction("Очистка лога",this);
-    QAction* eyeBot = new QAction("Зрение бота",this);
-    QAction* screenBot = new QAction("Сделать скриншот эмулятора",this);
-    QAction* sizeFix = new QAction("Исправить размер эмулятора",this);
-    QAction* winFix = new QAction("Исправить масштаб экрана",this);
-    QAction* posFix = new QAction("Исправить местоположение эмулятора",this);
-    QAction* fullFix = new QAction("Полное исправление бота с перезагрузкой игры",this);
-    QAction* settingBot = new QAction("Настройки бота",this);
+    QMenu *botMenu = new QMenu("Инструменты бота",this);
+    QAction *clearLog = new QAction("Очистка лога",this);
+    QAction *eyeBot = new QAction("Зрение бота",this);
+    QAction *screenBot = new QAction("Сделать скриншот эмулятора",this);
+    QAction *sizeFix = new QAction("Исправить размер эмулятора",this);
+    QAction *winFix = new QAction("Исправить масштаб экрана",this);
+    QAction *posFix = new QAction("Исправить местоположение эмулятора",this);
+    QAction *fullFix = new QAction("Полное исправление бота с перезагрузкой игры",this);
+    QAction *settingBot = new QAction("Настройки бота",this);
 
     botMenu->addAction(clearLog);
     botMenu->addAction(eyeBot);
@@ -144,23 +157,23 @@ void MainWindow::preProcessingMenuBar() {
     botMenu->addAction(settingBot);//Там будет автозапуск, вырубание бота при бездействии и всякая хрень
 
     //Связь со мной
-    QMenu* linkMenu = new QMenu("Связь со мной", this);
-    QAction* TgChannel = new QAction("Телеграмм-канал бота",this);
-    QAction* DsChannel = new QAction("Дискорд чат(недоступен в РФ)",this);
+    QMenu *linkMenu = new QMenu("Связь со мной", this);
+    QAction *TgChannel = new QAction("Телеграмм-канал бота",this);
+    QAction *DsChannel = new QAction("Дискорд чат(недоступен в РФ)",this);
 
     linkMenu->addAction(TgChannel);
     linkMenu->addAction(DsChannel);
 
     // Лицензия программы
-    QAction* myAbout = new QAction("Лицензии программы",mainWidget);
+    QAction *myAbout = new QAction("Лицензии программы",mainWidget);
 
     aboutProgram->addMenu(botMenu);
     aboutProgram->addMenu(linkMenu);
     aboutProgram->addAction(myAbout);
 
     //Прочие действия без меню
-    QAction* manual = new QAction("Инструкция",this);
-    QAction* bugReport = new QAction("Сообщить об ошибке",this);
+    QAction *manual = new QAction("Инструкция",this);
+    QAction *bugReport = new QAction("Сообщить об ошибке",this);
 
     menuBar->addMenu(generalMenu);
     menuBar->addAction(manual);
@@ -171,14 +184,14 @@ void MainWindow::preProcessingMenuBar() {
 }
 
 void MainWindow::createGUI() {
-    QWidget* widget = new QWidget(tabWidget);
-    QVBoxLayout* layout = new QVBoxLayout(widget);
-    QTabWidget* taskTabWidget = new QTabWidget(widget);
+    QWidget *widget = new QWidget(tabWidget);
+    QVBoxLayout *layout = new QVBoxLayout(widget);
+    QTabWidget *taskTabWidget = new QTabWidget(widget);
     int index = tabWidget->count();
 
     // Добавление 4 poka chto под-вкладок
-    for (int i = 0; i < 5; ++i) {
-        QWidget* tab = new QWidget(taskTabWidget);
+    for (int i = 0; i < 6; ++i) {
+        QWidget *tab = new QWidget(taskTabWidget);
         switch(i) {
         case 0:{
             createMainTab(tab,index);
@@ -201,6 +214,11 @@ void MainWindow::createGUI() {
             break;
         }
         case 4:{
+            createLighthouseTab(tab,index);
+            taskTabWidget->addTab(tab,"Маяк");
+            break;
+        }
+        case 5:{
             createLoggerTab(tab,index);
             taskTabWidget->addTab(tab, "Лог-вкладка");
             break;
@@ -216,12 +234,62 @@ void MainWindow::createGUI() {
     tabWidget->addTab(widget, "Новый аккаунт");
 }
 
+void MainWindow::createUnitsWidget(QWidget *mainTab, QWidget *widget) {
+    widget->setGeometry(0,90,175,230);
+    QGridLayout *layout = new QGridLayout(widget);
+
+    for(int i = 0; i < 8; i++){
+        QLabel *unitLabel = new QLabel(("Боец " + QString::number(i+1)),widget);
+        layout->addWidget(unitLabel,i,0,Qt::AlignCenter);
+        QComboBox *unitSet = new QComboBox(widget);
+        QStringList options = { "Не трогать", "Набор 1", "Набор 2", "Набор 3", "Снять всё" };
+        unitSet->addItems(options);
+        connect(this,&MainWindow::getUnitSet,this,[this,i,mainTab,unitSet](QWidget *tab, int index, typeSet &set){
+            if(i != index || mainTab != tab) return;
+            switch(unitSet->currentIndex()) {
+            case 0:{
+                set = typeSet::NOT_TOUCH;
+                break;
+            }
+            case 1:{
+                set = typeSet::SET_1;
+                break;
+            }
+            case 2:{
+                set = typeSet::SET_2;
+                break;
+            }
+            case 3:{
+                set = typeSet::SET_3;
+                break;
+            }
+            case 4:{
+                set = typeSet::UNEQUIP;
+                break;
+            }
+            }
+        });
+        layout->addWidget(unitSet,i,1);
+    }
+}
+
 void MainWindow::createLoggerTab(QWidget *tab,int index) {
     userProfile *tempUser = listData[index]->user;
     tempUser->logger = new QTextEdit(tab);
     tempUser->logger->setGeometry(5,5,372,307);
+
+    QFont logFont;
+    logFont.setFamily("Tahoma");
+    logFont.setPointSize(8);
+    tempUser->logger->setFont(logFont);
+
     connect(listData[index]->controller,&Controller::Logging,this,[=](const QString &msg){
         tempUser->logger->append("[" + QDateTime::currentDateTime().toString("HH:mm:ss.zzz") + "] " + msg);
+        QStringList lines = tempUser->logger->toPlainText().split("\n");
+        if (lines.size() > 1000) {
+            tempUser->logger->clear();
+            tempUser->logger->append("[" + QDateTime::currentDateTime().toString("HH:mm:ss.zzz") + "] Лог очищен автоматически.");
+        }
     },Qt::QueuedConnection);
     //если надо потом кнопки очистки добавлю и прочее.
 }

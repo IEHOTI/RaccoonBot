@@ -72,7 +72,15 @@ void MainWindow::createMainTab(QWidget *tab,int index) {
     });
 
     connect(startButton,&QPushButton::clicked,this,[=](){
-        if(tempUser->botID == 0) tempUser->bot_ID = (rand() % 10000);
+        if(usedEmulators.contains(listEmulators->currentText())) {
+            listData[index]->controller->Logging("Выбранный эмулятор " + listEmulators->currentText() + " уже занят другим ботом.",false);
+            listEmulators->setCurrentIndex(0);
+            listData[index]->controller->Logging("Выберите другой эмулятор.");
+            return;
+        }
+        usedEmulators.append(listEmulators->currentText());
+        listErrorLogs[index]->clear();
+        if(tempUser->bot_ID == 0) tempUser->bot_ID = (rand() % 10000);
         labelRaccoon->setPixmap(QPixmap(":/pages/anger.png"));
         startButton->setEnabled(false);
         listEmulators->setEnabled(false);
@@ -80,7 +88,8 @@ void MainWindow::createMainTab(QWidget *tab,int index) {
         stopButton->setEnabled(true);
         stopButton->setStyleSheet("background-color:red; color:white;");
         botThreads[index]->start();
-        emit startController(tempUser,nullptr);
+        QMetaObject::invokeMethod(listData[index]->controller,"Start",Qt::QueuedConnection,
+                                  Q_ARG(userProfile*,tempUser),Q_ARG(ErrorList*,nullptr));
     });
 
     connect(tempController,&Controller::endStart,this,[=]() {
@@ -103,23 +112,21 @@ void MainWindow::createMainTab(QWidget *tab,int index) {
 
         tabWidget->setTabText(index,QString::number(listData[index]->user->user_ID));
 
-        emit saveTaskQueue();
-
-        getSettings(index);
-        emit startBot();
+        emit tempController->saveTaskQueue(index);
     },Qt::QueuedConnection);
 
+    connect(tempController,&Controller::stopStart,tempController,&Controller::Stop,Qt::QueuedConnection);
+
     connect(stopButton,&QPushButton::clicked,this,[=]{
+        usedEmulators.removeAll(listEmulators->currentText());
         labelRaccoon->setPixmap(QPixmap(":/pages/what.png"));
-        statusLabel->setText("Cтатус бота: Бот остановлен");
+        stopButton->setEnabled(false);
+        stopButton->setStyleSheet("background-color:gray");
         startButton->setEnabled(true);
         listEmulators->setEnabled(true);
         startButton->setStyleSheet("background-color:green");
-        stopButton->setEnabled(false);
-        stopButton->setStyleSheet("background-color:gray");
-        if(listData[index]->currentTask < 0) listData[index]->controller->Stop();
+        if(listData[index]->currentTask < 0) emit tempController->stopStart();
         else emit listData[index]->stopTask();
-        botThreads[index]->quit();
         botThreads[index]->wait();
     });
 
@@ -139,23 +146,25 @@ void MainWindow::getSettings(int index) {
             localData->hashTasks[item] = curId++;
             orderedTask.append(item);
         }
-
     //далее идут эмиты для сбора и сохранения настроек в каждый заданий
     for(const QString& key : orderedTask) {
         int name = hashTask[key];
-        // nameTasks << "Арена" 0 << "Башня" 1<< "Бухта" 2<< "Грабежи" 3<< "Ивент"4
-                  // << "Колизей" 5<< "Маяк" 6<< "Подземелье" 7<< "Портал" 8<< "Разное"9
+        // nameTasks << "Арена" 0<< "Башня" 1<< "Бухта" 2<< "Грабежи" 3<< "Ивент" 4
+                  // << "Колизей" 5<< "Маяк" 6<< "Подземелье" 7<< "Портал" 8<< "Разное" 9
                   // << "Собор" 10;
         switch (name) {
             //case case case emit emit emit
         case 0:
-            emit getArenaSettings();
+            emit getArenaSettings(index);
+            break;
+        case 6:
+            emit getLighthouseSettings(index);
             break;
         case 10:
-            emit getCathedralSettings();
+            emit getCathedralSettings(index);
             break;
         default:
-            localData->controller->LocalLogging("Ошибка создания задания.");
+            localData->controller->LocalLogging("Ошибка создания задания " + key);
             break;
         }
     }

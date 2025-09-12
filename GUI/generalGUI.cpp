@@ -116,11 +116,13 @@ void MainWindow::createGeneralTab(QWidget *tab, int index) {
             readSettings(path,taskWidget);
         }
     });
-
-    connect(this,&MainWindow::saveTaskQueue,this,[=](){
-        listData[index]->listTaskQueue.clear();
+    connect(listData[index]->controller,&Controller::saveTaskQueue,this,[=](int local_index){
+        listData[local_index]->listTaskQueue.clear();
         for(int i = 0; i < taskWidget->count();i++)
-            listData[index]->listTaskQueue.append(taskWidget->item(i)->text());
+            listData[local_index]->listTaskQueue.append(taskWidget->item(i)->text());
+
+        getSettings(local_index);
+        QMetaObject::invokeMethod(listData[index].data(),"executeTasks",Qt::QueuedConnection);
     });
 }
 

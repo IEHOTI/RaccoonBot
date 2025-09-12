@@ -76,40 +76,40 @@ void MainWindow::createCathedralTab(QWidget *tab,int index) {
     QIntValidator* foodValid = new QIntValidator(0, 2000000,tab);
     foodLine->setValidator(foodValid);
 
-    connect(this,&MainWindow::getCathedralSettings,this,[=](){
-        userProfile *tempUser = listData[index]->user;
+    int fixedIndex = index;
+    connect(this,&MainWindow::getCathedralSettings,this,[=](int local_index){
+        if(local_index != fixedIndex) return;
+        tab->setEnabled(false);
+        userProfile *tempUser = listData[fixedIndex]->user;
         CathedralSettings* settings = new CathedralSettings();
         settings->history_power = tempUser->history_power;
         QString str = countBox->currentText();
         if (str == "∞") settings->count = -1;
         else settings->count = str.toInt();
         settings->premiumStatus = tempUser->state_premium;
-        if(adsTask->isChecked()) settings->watchADS = true;
-        else settings->watchADS = false;
+        settings->watchADS = adsTask->isChecked();
         //
         settings->modeDifficult = modeBox->currentIndex();
         if(bestButton->isChecked()) settings->modeSquad = 0;
         if(lastButton->isChecked()) settings->modeSquad = 1;
         if(barrackButton->isChecked()) settings->modeSquad = 2;
         settings->modeKey = resourceBox->currentIndex();
-        if(fullButton->isChecked()) settings->fullGamePass = true;
-        else settings->fullGamePass = false;
-        if(chestTask->isChecked()) settings->openChest = true;
-        else settings->openChest = false;
+        settings->fullGamePass = fullButton->isChecked();
+        settings->openChest = chestTask->isChecked();
         int temp = foodLine->text().remove(' ').toInt();
         if(temp > 2000000) temp = 2000000;
         else if(temp < 0) temp = 0;
         settings->saveApple = temp;
-        Cathedral *task = new Cathedral(listData[index]->controller);
-        task->moveToThread(botThreads[index]);
-        QMetaObject::invokeMethod(task, [task, parent=listData[index].data()](){
+        Cathedral *task = new Cathedral(listData[fixedIndex]->controller);
+        task->moveToThread(botThreads[fixedIndex]);
+        QMetaObject::invokeMethod(task, [task, parent=listData[fixedIndex].data()](){
             task->setParent(parent);
         }, Qt::QueuedConnection);
         connect(this,&MainWindow::initCathedral,task,&Cathedral::Initialize,Qt::QueuedConnection);
         emit initCathedral(settings);
-        listData[index]->listTasks.append(task);
-        listData[index]->listSettings.append(settings);
+        listData[fixedIndex]->listTasks.append(task);
+        listData[fixedIndex]->listSettings.append(settings);
 
-        tab->setEnabled(true);//?
+        tab->setEnabled(true);
     });
 }

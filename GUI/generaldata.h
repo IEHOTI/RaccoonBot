@@ -18,9 +18,12 @@ public:
     void saveTaskSettings(const QString &strId, bool *result);
     void loadTaskSettings(const QString &strId, bool *result);
     void saveEmulator(Emulator* emulator);
+
+public slots:
     void executeTasks();
 signals:
     void stopTask();
+
 public:
     QList<Task*> listTasks;
     QList<TaskSettings*> listSettings; //[*] - любая уникалка. порядок заданий определяется и хранится в хеше

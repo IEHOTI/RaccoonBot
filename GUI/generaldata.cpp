@@ -11,18 +11,22 @@ GeneralData::~GeneralData() {
 }
 
 void GeneralData::executeTasks(){
-    connect(controller,&Controller::SuccessFix,this,[this,&i](){
+    if(listTasks.isEmpty()) {
+        controller->Logging("Список заданий пуст.");
+        return;
+    }
+    connect(controller,&Controller::SuccessFix,this,[=](){
         currentTask--;
     });
     ErrorList result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     while(true) {
         currentTask = 0;
         for(int n = listTaskQueue.size(); currentTask < n; currentTask++) {
+            int curIndex = hashTasks[listTaskQueue[currentTask]];
             QMetaObject::Connection stopConnection;
-            stopConnection = connect(this, &GeneralData::stopTask, this, [=]() {
+            stopConnection = connect(this, &GeneralData::stopTask, this, [this,&curIndex]() {
                 listTasks[curIndex]->Stop();
             },Qt::QueuedConnection);
-            int curIndex = hashTasks[listTaskQueue[currentTask]];
             listTasks[curIndex]->Start(&result);
             if(!result) {
                 if(result.error == m_Error::STOP_TASK) {
@@ -32,7 +36,7 @@ void GeneralData::executeTasks(){
                 }
                 else if(result.error == m_Error::PAUSE_TASK){
                     controller->Logging("Задание " + listTaskQueue[currentTask] + " на паузе.");
-                    i--;
+                    currentTask--;
                 }
                 else {
                     controller->Logging("Задание " + listTaskQueue[currentTask] + " провалено.");
