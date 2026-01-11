@@ -79,6 +79,12 @@ void Controller::fixPopUpError(ErrorList *result){
     for(int i = 0; i < temp.size(); i++){
         compareSample("warnings/general","sample_"+temp[i],"compare_"+temp[i],&l_result,true);
         if(l_result){
+            if(temp[i] == "device") {
+                Logging("Вход с другого устройства",true);
+                Logging("Ожидание 30 минут");
+                QThread::sleep(1800);///1800
+                Logging("Продолжаем работу.",true);
+            }
             clickButton("warnings/general","button_" + temp[i],&l_result,2);
             if(!l_result){
                 observer.value = l_result;

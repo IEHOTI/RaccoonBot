@@ -40,14 +40,14 @@ void Controller::Start(userProfile *user, ErrorList *result) {
         bool result = false;
         lib->load(result);
         if(!result) throw ImageException("Cannot load images");
-        else {
-            QStringList allImages;
-            lib->getList(allImages);
-            qDebug() << allImages;
-            cv::Mat temp;
-            lib->get(":/pages/load/compare_open.png",temp);
-            if(temp.empty()) throw ImageException("empty img");
-        }
+        // else {
+        //     QStringList allImages;
+        //     lib->getList(allImages);
+        //     qDebug() << allImages;
+        //     cv::Mat temp;
+        //     lib->get(":/pages/load/compare_open.png",temp);
+        //     if(temp.empty()) throw ImageException("empty img");
+        // }
 
         if(!FindEmulator(user->emulator_name,&m_main,&m_game)) {
             observer.value.error = m_Error::FAIL_INIT;

@@ -83,7 +83,8 @@ void Cathedral::Start(ErrorList *result) {
             checkMain(&l_result);
             if(!l_result){
                 observer.value = l_result;
-                observer.print = false;
+                observer.print = "check_main";
+                return;
             }
             if(currentStage == 0) {
                 checkSettings(&l_result);
@@ -114,12 +115,12 @@ void Cathedral::Start(ErrorList *result) {
             do controller->compareSample("dark","sample_end","compare_end",&l_result,true);
             while(!l_result);
             do {
-                controller->compareSample("dark","sample_end","compare_end",&l_result,true);
-                if(l_result) {
+                controller->compareSample("load","sample","compare",&l_result,true);
+                if(!l_result) {
                     controller->clickButton("dark","button_end");
                     QThread::msleep(200);
                 }
-            } while(l_result);
+            } while(!l_result);
             controller->checkLoading();
             QThread::msleep(750);
             controller->checkEvent(&l_result);

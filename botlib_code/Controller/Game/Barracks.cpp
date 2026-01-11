@@ -111,20 +111,23 @@ void Controller::setUnitSet(int index, typeSet set, ErrorList *result) {
             }
         }
     } while(!l_result);
-    x = 0;
-    do{
-        compareSample(pagePath,"sample_set","compare_set",&l_result,true);
-        if(!l_result) {
-            clickButton(pagePath,"button_set",nullptr,1);
-            x++;
-            if(x == 10){
-                observer.value.warning = m_Warning::FAIL_COMPARE;
-                observer.comment = "unit set sample";
-                return;
-            }
-            QThread::msleep(1000);
-        }
-    } while(!l_result);
+
+    openAnySets(&l_result);
+    if(!l_result) NoPrintError(&observer,l_result);
+
+    // do{
+    //     compareSample(pagePath,"sample_set","compare_set",&l_result,true);
+    //     if(!l_result) {
+    //         clickButton(pagePath,"button_set",nullptr,1);
+    //         x++;
+    //         if(x == 10){
+    //             observer.value.warning = m_Warning::FAIL_COMPARE;
+    //             observer.comment = "unit set sample";
+    //             return;
+    //         }
+    //         QThread::msleep(1000);
+    //     }
+    // } while(!l_result);
     x = 0;
     switch (set) {
     case typeSet::UNEQUIP : {
@@ -144,7 +147,7 @@ void Controller::setUnitSet(int index, typeSet set, ErrorList *result) {
     case typeSet::SET_2 : {
         compareSample(pagePath,"sample_set_0","state_set",&l_result);
         if(l_result) {
-            Logging("У " + QString::number(index + 1) + " бойца отсутсвуют набор вещей.",false);
+            Logging("У " + QString::number(index + 1) + " бойца отсутсвует первый набор вещей.",false);
             break;
         }
         compareSample(pagePath,"sample_set_1","state_set",&l_result);

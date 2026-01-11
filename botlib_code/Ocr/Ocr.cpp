@@ -2,6 +2,8 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/ml/ml.hpp>
+#include "ImageLibrary/ImageLibrary.h"
+#include "CustomError/Exception.h"
 
 #include <QDir>
 #include <QFileInfoList>
@@ -13,9 +15,7 @@ namespace
     const cv::Size gTemplateSymbolSize = { 16,16 }; // mean: 16, 21  20,30
 }
 
-Ocr::Ocr(QObject *parent): QObject(parent) {
-    mTrainDir = ":/numbers";
-}
+Ocr::Ocr(QObject *parent): QObject(parent) {}
 
 Ocr::~Ocr() = default;
 
@@ -28,26 +28,29 @@ void Ocr::emitError(const QString &str) const {
 }
 void Ocr::Train() {
     std::array<std::vector<cv::Mat>, 10> glyphs;
-
+    ImageLibrary* lib;
+    try {
+        lib = new ImageLibrary("ImageLib.dll");
+        bool result = false;
+        lib->load(result);
+        if(!result) throw ImageException("Cannot load images");
+    } catch(ImageException &e){
+        emitError(e.what());
+        return;
+    }
     // Перебираем цифры 0–9
     for (int d = 0; d <= 9; ++d) {
         QString resourcePath = QString(":/numbers/%1.png").arg(d);
-        QImage imageOne(resourcePath);
-
-        if(imageOne.isNull()) {
-            emitError("empty numbers " + resourcePath);
-            return;
-        }
-
-        imageOne = imageOne.convertToFormat(QImage::Format_Grayscale8);
-        // Определяем формат QImage и конвертируем в соответствующий Mat
-        cv::Mat img(imageOne.height(), imageOne.width(), CV_8UC1, (void*)imageOne.constBits(), imageOne.bytesPerLine());
-
+        cv::Mat img;
+        lib->get(resourcePath,img);
         if (img.empty()) {
             emitError("Не удалось загрузить " + resourcePath);
             return;
         }
-        glyphs[d].push_back(img.clone());
+        // Конвертируем в grayscale если нужно
+        cv::Mat gray_img;
+        cv::cvtColor(img, gray_img, cv::COLOR_BGR2GRAY);
+        glyphs[d].push_back(gray_img.clone());
     }
 
     cv::Mat array_chars;
@@ -73,6 +76,8 @@ void Ocr::Train() {
         mKNearest->setDefaultK(1);
         if (!mKNearest->train(array_images, cv::ml::ROW_SAMPLE, array_chars)) emitError("Не удалось обучить модель.");
     }
+    delete lib;
+    lib = nullptr;
 }
 
 int Ocr::RecognizeDigit(const cv::Mat &img) const {

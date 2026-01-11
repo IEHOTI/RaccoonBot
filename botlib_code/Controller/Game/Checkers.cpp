@@ -127,6 +127,7 @@ void Controller::checkMainPage(ErrorList *result) {
 }
 
 void Controller::checkEvent(ErrorList *result) {
+    LocalLogging("Check Event");
     //if(!event) return;
     ErrorObserver observer(result);
     connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
@@ -148,7 +149,7 @@ void Controller::checkEvent(ErrorList *result) {
     cv::Mat find = cutImage();
     do {
         Screenshot();
-        compareObject(0.02,&find,&m_object,&l_result);
+        compareObject(0.035,&find,&m_object,&l_result);
         if(l_result) break;
         else {
             x++;

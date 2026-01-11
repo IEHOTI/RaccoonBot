@@ -9,6 +9,7 @@ enum class typeSet {
     SET_2,
     SET_3,
     UNEQUIP,
+    CUSTOM,
 };
 
 struct BOTLIB_EXPORT TaskSettings {

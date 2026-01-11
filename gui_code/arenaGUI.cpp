@@ -163,6 +163,10 @@ void MainWindow::createArenaTab(QWidget *tab,int index) {
         if(checked) unitFirstWidget->setEnabled(true);
         else unitFirstWidget->setEnabled(false);
     });
+
+    QWidget *heroWidget = new QWidget(tab);
+    createHeroWidget(tab, heroWidget);
+    heroWidget->setEnabled(true);
     ///////
 
     int fixedIndex = index;
@@ -225,6 +229,19 @@ void MainWindow::createArenaTab(QWidget *tab,int index) {
         }
         settings->strategy.black = BLBox->isChecked();
         settings->strategy.white = WLBox->isChecked();
+
+        //hero check
+        int heroIndex = -1;
+        QStringList relics;
+        emit getHeroRelics(tab, heroIndex, relics);
+        if(heroIndex == 5) {
+            const QList<QString> tempRelics = relics.toList();
+            listData[fixedIndex]->controller->setHeroRelics(nullptr, &tempRelics);
+        }
+        else {
+            listData[fixedIndex]->controller->setHeroSet(static_cast<typeSet>(heroIndex));
+        }
+        //
 
         Arena *task = new Arena(listData[fixedIndex]->controller);
         task->moveToThread(botThreads[fixedIndex]);

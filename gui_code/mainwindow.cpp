@@ -126,7 +126,7 @@ void MainWindow::preProcessingData() {
     connect(controller, &Controller::errorLogging, errorLog, [=](const QString &text) {
         errorLog->append(text);
         QStringList lines = errorLog->toPlainText().split("\n");
-        if (lines.size() > 1000) {
+        if (lines.size() > 10000) {
             errorLog->clear();
             errorLog->append("=== Лог очищен автоматически ===");
         }
@@ -431,7 +431,6 @@ void MainWindow::createHeroWidget(QWidget *mainTab, QWidget *widget){
             if (!relics.contains(setSecondSubRelic->currentText())) relics.append(setSecondSubRelic->currentText());
             if (!relics.contains(setThirdSubRelic->currentText())) relics.append(setThirdSubRelic->currentText());
             if (!relics.contains(setFourthSubRelic->currentText())) relics.append(setFourthSubRelic->currentText());
-            qDebug() << relics;
         } else relics.clear();
     });
 }

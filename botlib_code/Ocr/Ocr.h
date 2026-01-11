@@ -48,7 +48,6 @@ private:
 
     mutable std::mutex mKnearesMutex;
     cv::Ptr<cv::ml::KNearest> mKNearest;
-    QString mTrainDir;
 
     std::atomic<bool> mIsLoaded = false;
     Params mParams;

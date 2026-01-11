@@ -87,6 +87,14 @@ public:
     void checkEvent(ErrorList *result = nullptr);
     void checkSettings(ErrorList *result = nullptr);
 
+    /// \brief Common
+    void openAnySets(ErrorList *result = nullptr);
+
+    /// \brief Hero
+    void openHeroPage(ErrorList *result = nullptr);
+    void setHeroSet(typeSet set = typeSet::NOT_TOUCH, ErrorList *result = nullptr);
+    void setHeroRelics(ErrorList *result = nullptr, const QList<QString> *relicsList = nullptr);
+
     /// \brief Barrack
     void findBarracks(ErrorList *result = nullptr);
     void entryBarracks(ErrorList *result = nullptr);

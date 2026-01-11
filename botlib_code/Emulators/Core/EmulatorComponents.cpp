@@ -184,7 +184,8 @@ std::wstring sanitizePath(const std::wstring &input, typeEmu type, int &instance
 bool FindEmulator(const QString &windowName, HWND *main, HWND *game) {
     constexpr int INITIAL_DELAY_MS = 500;
     constexpr int GAME_DELAY_MS = 300;
-    int addCount = 34;
+    int addHeight = 34;
+    int addWidth = 42;
     QThread::msleep(INITIAL_DELAY_MS);
     int x = 0;
     while (!(*main = FindWindowA(NULL, windowName.toUtf8().constData()))) {
@@ -208,9 +209,9 @@ bool FindEmulator(const QString &windowName, HWND *main, HWND *game) {
     if (!SetWindowPos(*main, HWND_BOTTOM, 1, 1, 1, 1, SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED)) return false;
     QThread::msleep(INITIAL_DELAY_MS);
     ShowWindow(*main, SW_SHOWNOACTIVATE);
-    if (!SetWindowPos(*main, HWND_BOTTOM, 1, 1, 900, 600 + addCount, SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED)) return false;
+    if (!SetWindowPos(*main, HWND_BOTTOM, 1, 1, 900 + addWidth, 600 + addHeight, SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED)) return false;
     QThread::msleep(INITIAL_DELAY_MS);
-    if (!SetWindowPos(*game, HWND_BOTTOM, 0, addCount, 900, 600, SWP_NOZORDER | SWP_NOACTIVATE |SWP_FRAMECHANGED)) return false;
+    if (!SetWindowPos(*game, HWND_BOTTOM, 0, addHeight, 900, 600, SWP_NOZORDER | SWP_NOACTIVATE |SWP_FRAMECHANGED)) return false;
     QThread::msleep(INITIAL_DELAY_MS);
     return true;
 }
