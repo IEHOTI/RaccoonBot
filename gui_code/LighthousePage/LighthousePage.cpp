@@ -1,4 +1,5 @@
-#include "mainwindow.h"
+#include "MainWindow/MainWindow.h"
+#include "MyClasses/GeneralData.h"
 
 #include <QCheckBox>
 #include <QLabel>
@@ -10,31 +11,36 @@
 #include "Lighthouse/Lighthouse.h"
 #include "User/UserProfile.h"
 
-#include "generaldata.h"
-
 void MainWindow::createLighthouseTab(QWidget *tab, int index) {
     QCheckBox* adsTask = new QCheckBox("Смотреть рекламу",tab);
+    adsTask->setObjectName("adsTask");
     adsTask->setGeometry(5,0,175,20);
 
     QCheckBox* chestTask = new QCheckBox("Автооткрытие сундуков",tab);
+    chestTask->setObjectName("chestTask");
     chestTask->setGeometry(175,0,185,20);
 
     QLabel *labelRefresh = new QLabel("Частота обновлений",tab);
+    labelRefresh->setObjectName("labelRefresh");
     labelRefresh->setGeometry(15,25,150,20);
 
     QComboBox *algorithmBox = new QComboBox(tab);
+    algorithmBox->setObjectName("algorithmBox");
     algorithmBox->setGeometry(5,60,160,20);
     algorithmBox->addItem("При первом поражении");
     algorithmBox->addItem("Каждые 3 удара");
     algorithmBox->addItem("Каждые 5 ударов");
 
     QLabel *labelUseDiamond = new QLabel("Использование кристаллов",tab);
+    labelUseDiamond->setObjectName("labelUseDiamond");
     labelUseDiamond->setGeometry(175,45,185,20);
 
     QCheckBox *useRefresh = new QCheckBox("Обновление",tab);
+    useRefresh->setObjectName("useRefresh");
     useRefresh->setGeometry(175,75,140,20);
 
     QLineEdit *lineRefresh = new QLineEdit(tab);
+    lineRefresh->setObjectName("lineRefresh");
     lineRefresh->setGeometry(340,75,35,20);
     lineRefresh->setEnabled(false);
     lineRefresh->setText("1");
@@ -47,9 +53,11 @@ void MainWindow::createLighthouseTab(QWidget *tab, int index) {
     lineRefresh->setValidator(validRefresh);
 
     QCheckBox *useAttack = new QCheckBox("Атака",tab);
+    useAttack->setObjectName("useAttack");
     useAttack->setGeometry(175,105,140,20);
 
     QLineEdit *lineAttack = new QLineEdit(tab);
+    lineAttack->setObjectName("lineAttack");
     lineAttack->setGeometry(340,105,35,20);
     lineAttack->setEnabled(false);
     lineAttack->setText("1");
@@ -60,9 +68,11 @@ void MainWindow::createLighthouseTab(QWidget *tab, int index) {
     lineAttack->setValidator(validRefresh);
 
     QLabel* powerLabel = new QLabel("Множитель мощи",tab);
+    powerLabel->setObjectName("powerLabel");
     powerLabel->setGeometry(175,145,140,20);
 
     QLineEdit* powerLine = new QLineEdit(tab);
+    powerLine->setObjectName("powerLine");
     powerLine->setGeometry(340,145,35,20);
     powerLine->setText("1.0");
 
@@ -72,10 +82,12 @@ void MainWindow::createLighthouseTab(QWidget *tab, int index) {
     powerLine->setValidator(powerValid);
 
     QCheckBox *BLBox = new QCheckBox("BlackList",tab);
+    BLBox->setObjectName("BLBox");
     BLBox->setGeometry(175,175,90,20);
     BLBox->setChecked(true);
 
     QCheckBox *WLBox = new QCheckBox("WhiteList",tab);
+    WLBox->setObjectName("WLBox");
     WLBox->setGeometry(285,175,90,20);
     WLBox->setChecked(true);
 
@@ -136,5 +148,4 @@ void MainWindow::createLighthouseTab(QWidget *tab, int index) {
 
         tab->setEnabled(true);
     });
-
 }

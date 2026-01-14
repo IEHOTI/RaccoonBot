@@ -17,12 +17,15 @@ struct GeneralData : public QObject
 public:
     ~GeneralData();
     void getCurrentTaskObj(Task *result,int index) {result = listTasks[index];}
-    void saveTaskSettings(const QString &strId, bool *result);
-    void loadTaskSettings(const QString &strId, bool *result);
+    //void saveData();
+    //void loadData();
+    //void saveTaskSettings(const QString &strId, bool *result);
+    //void loadTaskSettings(const QString &strId, bool *result);
     void saveEmulator(Emulator* emulator);
 
 public slots:
     void executeTasks();
+    void moveOnMainThread(QThread *thread);
 signals:
     void stopTask();
 

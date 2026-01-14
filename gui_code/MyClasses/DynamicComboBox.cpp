@@ -1,10 +1,10 @@
-#include "dynamiccombobox.h"
-#include "additionalfunction.h"
+#include "DynamicComboBox.h"
+#include "Common/AdditionalFunction.h"
 
 #include <QList>
 #include <QString>
 
-DynamicComboBox::DynamicComboBox(QWidget* parent)
+DynamicComboBox::DynamicComboBox(QWidget *parent)
     : QComboBox(parent)
 {
     addItem("Выберите эмулятор");
@@ -14,6 +14,12 @@ DynamicComboBox::DynamicComboBox(QWidget* parent)
 void DynamicComboBox::showPopup() {
     updateEmulatorList(); // обновляем перед открытием
     QComboBox::showPopup(); // вызов оригинального комбобоха
+}
+
+void DynamicComboBox::setMyText(const QString &text){
+    while (count() > 1) {removeItem(1);}
+    addItem(text);
+    this->setCurrentIndex(1);
 }
 
 void DynamicComboBox::updateEmulatorList() {
@@ -27,7 +33,7 @@ void DynamicComboBox::updateEmulatorList() {
 
     if(emulatorNames.size() == 0) {
         addItem("Эмуляторы не найдены");
-        setItemData(1,true,Qt::UserRole - 1);
+        setItemData(1, true, Qt::UserRole - 1);
         return;
     }
     for (const QString& name : emulatorNames) {addItem(name);}

@@ -1,4 +1,5 @@
-#include "mainwindow.h"
+#include "MainWindow/MainWindow.h"
+#include "MyClasses/GeneralData.h"
 
 #include <QCheckBox>
 #include <QRadioButton>
@@ -12,54 +13,65 @@
 #include "Cathedral/Cathedral.h"
 #include "User/UserProfile.h"
 
-#include "generaldata.h"
-
 void MainWindow::createCathedralTab(QWidget *tab,int index) {
     QCheckBox* adsTask = new QCheckBox("Смотреть рекламу",tab);
+    adsTask->setObjectName("adsTask");
     adsTask->setGeometry(5,0,175,20);
 
     QCheckBox* chestTask = new QCheckBox("Автооткрытие сундуков",tab);
-    chestTask->setGeometry(190,0,185,20);
+    chestTask->setObjectName("chestTask");
+    chestTask->setGeometry(175,0,200,20);
 
     QRadioButton* bestButton = new QRadioButton("Выставить лучших",tab);
+    bestButton->setObjectName("bestButton");
     bestButton->setGeometry(5,25,175,20);
 
     QRadioButton* lastButton = new QRadioButton("Предыдущий отряд",tab);
+    lastButton->setObjectName("lastButton");
     lastButton->setGeometry(5,50,175,20);
     lastButton->setChecked(true);
 
     QRadioButton* barrackButton = new QRadioButton("Отряд с казармы",tab);
+    barrackButton->setObjectName("barrackButton");
     barrackButton->setGeometry(5,75,175,20);
 
     QButtonGroup* squad = new QButtonGroup(tab);
+    squad->setObjectName("squad");
     squad->addButton(bestButton);
     squad->addButton(lastButton);
     squad->addButton(barrackButton);
 
     QRadioButton* fullButton = new QRadioButton("Полное прохождение",tab);
-    fullButton->setGeometry(190,25,185,20);
+    fullButton->setObjectName("fullButton");
+    fullButton->setGeometry(175,25,200,20);
     fullButton->setChecked(true);
 
     QRadioButton* fastButton = new QRadioButton("Боссы и миньоны",tab);
-    fastButton->setGeometry(190,50,185,20);
+    fastButton->setObjectName("fastButton");
+    fastButton->setGeometry(175,50,200,20);
 
     QButtonGroup* mode = new QButtonGroup(tab);
+    mode->setObjectName("mode");
     mode->addButton(fullButton);
     mode->addButton(fastButton);
 
     QLabel* modeLabel = new QLabel("Сложность",tab);
-    modeLabel->setGeometry(190,75,90,20);
+    modeLabel->setObjectName("modeLabel");
+    modeLabel->setGeometry(175,75,105,20);
 
     QComboBox* modeBox = new QComboBox(tab);
+    modeBox->setObjectName("modeBox");
     modeBox->setGeometry(275,75,100,20);
     modeBox->addItem("Нормальная");
     modeBox->addItem("Сложная");
     modeBox->addItem("Кошмарная");
 
     QLabel* resourceLabel = new QLabel("Расходовать",tab);
-    resourceLabel->setGeometry(190,100,90,20);
+    resourceLabel->setObjectName("resourceLabel");
+    resourceLabel->setGeometry(175,100,105,20);
 
     QComboBox* resourceBox = new QComboBox(tab);
+    resourceBox->setObjectName("resourceBox");
     resourceBox->setGeometry(275,100,100,20);
     resourceBox->addItem("Яблоки");
     resourceBox->addItem("Ключи");
@@ -67,9 +79,11 @@ void MainWindow::createCathedralTab(QWidget *tab,int index) {
     resourceBox->addItem("Ключи > Яблоки");
 
     QLabel* countLabel = new QLabel("Количество походов",tab);
-    countLabel->setGeometry(190,125,150,20);
+    countLabel->setObjectName("countLabel");
+    countLabel->setGeometry(175,125,165,20);
 
     QComboBox* countBox = new QComboBox(tab);
+    countBox->setObjectName("countBox");
     countBox->setGeometry(335,125,40,20);
     countBox->addItem("1");
     countBox->addItem("2");
@@ -83,9 +97,11 @@ void MainWindow::createCathedralTab(QWidget *tab,int index) {
     countBox->addItem("∞");
 
     QLabel* foodLabel = new QLabel("Сохранять еды",tab);
-    foodLabel->setGeometry(190,150,130,20);
+    foodLabel->setObjectName("foodLabel");
+    foodLabel->setGeometry(175,150,130,20);
 
     QLineEdit* foodLine = new QLineEdit(tab);
+    foodLine->setObjectName("foodLine");
     foodLine->setGeometry(305,150,70,20);
     foodLine->setText("0");
     QIntValidator* foodValid = new QIntValidator(0, 2000000,tab);

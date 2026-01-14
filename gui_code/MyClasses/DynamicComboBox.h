@@ -6,8 +6,9 @@
 class DynamicComboBox : public QComboBox {
     Q_OBJECT
 public:
-    explicit DynamicComboBox(QWidget* parent = nullptr);
+    explicit DynamicComboBox(QWidget *parent = nullptr);
 
+    void setMyText(const QString &text);
 protected:
     void showPopup() override;
 

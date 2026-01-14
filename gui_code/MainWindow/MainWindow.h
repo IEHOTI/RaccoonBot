@@ -5,6 +5,7 @@
 #include <QTextEdit>
 #include <QListWidget>
 #include "qcontainerfwd.h"
+
 #include "Task/TaskSettings.h"
 
 struct GeneralData;
@@ -23,18 +24,34 @@ public:
     void preProcessingData(); // возможно тут сделать потом проверку на загрузку данных после закрытия
     void preProcessingMenuBar();
 
+    //serializing
+    void serializeAllPage(int id, QTabWidget *taskTabWidget);
+    void unSerializeAllPage(int id, QTabWidget *taskTabWidget);
+    void saveWidget(QVariantMap &settings, const QString &prefix, QWidget *widget);
+    void loadWidget(const QVariantMap &settings, const QString &prefix, QWidget *widget);
+
+    void serializeMainPage(int index);
+    void unSerializeMainPage(const QString &accountId, int index);
+
+    //menu
+    void removeAccount();
+    void saveData(); //rename to saveUserData
+    void loadData();
+
     //tab
     void createGUI();
     void createLoggerTab(QWidget *tab, int index);
     void createUnitsWidget(QWidget *mainTab, QWidget *widget);
     void createHeroWidget(QWidget *mainTab, QWidget *widget);
+
     //main
     void createMainTab(QWidget *tab, int index);
     void getSettings(int index);
 
     //general
     void createGeneralTab(QWidget *tab, int index);
-    void readSettings(QString &path, QListWidget *widget);
+    void saveTaskList(const QString &filename, const QList<QString> &taskList);
+    void readTaskList(QString &path, QListWidget *widget);
 
     //cathedral
     void createCathedralTab(QWidget *tab, int index);
@@ -45,14 +62,21 @@ public:
     //lighthouse
     void createLighthouseTab(QWidget *tab, int index);
 signals:
+    //serialize
+    void serializeApplication(int id);
+    void unSerializeApplication(int id);
     //tab
     void getUnitSet(QWidget *tab, int index, typeSet &set);
     void getUnits();
     void getHeroRelics(QWidget *tab, int &set, QStringList &relics);
+    //void serializeUnits(...);
+    //void serializeHero(...);
 
     //main
     void startBot();
     void startController(userProfile *user, ErrorList *result = nullptr);
+    void loadMainPage();
+
     //general
 
     //arena

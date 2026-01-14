@@ -1,4 +1,4 @@
-#include "additionalfunction.h"
+#include "AdditionalFunction.h"
 #include <QList>
 #include <QString>
 

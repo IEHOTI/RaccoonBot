@@ -1,15 +1,17 @@
-#include "mainwindow.h"
+#include "MainWindow/MainWindow.h"
+#include "MyClasses/GeneralData.h"
+#include "MyClasses/DynamicComboBox.h"
+#include "MainPage/MainPageSerializer.h"
 
 #include <QLabel>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QThread>
+#include <QFile>
 
 #include "Controller/Controller.h"
 #include "User/UserProfile.h"
-
-#include "dynamiccombobox.h"
-#include "generaldata.h"
+#include "qdir.h"
 
 void MainWindow::createMainTab(QWidget *tab,int index) {
     if (!listData[index]) {
@@ -20,12 +22,10 @@ void MainWindow::createMainTab(QWidget *tab,int index) {
         else listErrorLogs[index]->setText(errorMsg);
         return;
     }
-    userProfile *tempUser = listData[index]->user;
-    Controller *tempController = listData[index]->controller;
 
     listData[index]->accountInfo = new QWidget(tab); // получение виджета инфы об аккаунте
-    tempUser->getInfo(listData[index]->accountInfo); // userProfile user
-    listData[index]->accountInfo->setGeometry(0,0,380,200);
+    listData[index]->user->getInfo(listData[index]->accountInfo); // userProfile user
+    listData[index]->accountInfo->setGeometry(0,0, 380, 200);
 
     DynamicComboBox* listEmulators = new DynamicComboBox(tab);
     listEmulators->setGeometry(5, 210, 250, 25);
@@ -36,7 +36,7 @@ void MainWindow::createMainTab(QWidget *tab,int index) {
     statusLabel->setAlignment(Qt::AlignCenter);
     statusLabel->setGeometry(5,245,250,25);
 
-    connect(tempController,&Controller::Logging,this,[=](const QString &msg, const bool print){
+    connect(listData[index]->controller,&Controller::Logging,this,[=](const QString &msg, const bool print){
         if(print) statusLabel->setText(msg);
     },Qt::QueuedConnection);
 
@@ -44,7 +44,7 @@ void MainWindow::createMainTab(QWidget *tab,int index) {
     startButton->setGeometry(5,280,120,30);
     startButton->setStyleSheet("QPushButton {"
                                "background-color:gray;"
-                               "color:white;"
+                               "color: white;"
                                "margin: 0px;"
                                "padding: 0px;"
                                "border: none;"
@@ -56,7 +56,7 @@ void MainWindow::createMainTab(QWidget *tab,int index) {
     stopButton->setGeometry(135,280,120,30);
     stopButton->setStyleSheet("QPushButton {"
                               "background-color:gray;"
-                              "color:white;"
+                              "color: white;"
                               "margin: 0px;"
                               "padding: 0px;"
                               "border: none;"
@@ -68,9 +68,9 @@ void MainWindow::createMainTab(QWidget *tab,int index) {
     labelRaccoon->setGeometry(255,195,130,130);
     labelRaccoon->setPixmap(QPixmap(":/pages/what.png"));
 
-    connect(listEmulators, &DynamicComboBox::currentIndexChanged, this, [=](int index){
-        if (index > 0 && index < listEmulators->count()) {
-            tempUser->emulator_name = listEmulators->itemText(index);
+    connect(listEmulators, &DynamicComboBox::currentIndexChanged, this, [=](int localIndex){
+        if (localIndex > 0 && localIndex < listEmulators->count()) {
+            listData[index]->user->emulator_name = listEmulators->itemText(localIndex);
             startButton->setEnabled(true);
             startButton->setStyleSheet("background-color:green; color:white;");
         }
@@ -91,7 +91,7 @@ void MainWindow::createMainTab(QWidget *tab,int index) {
         }
         usedEmulators.append(listEmulators->currentText());
         listErrorLogs[index]->clear();
-        if(tempUser->bot_ID == 0) tempUser->bot_ID = (rand() % 10000);
+        if(listData[index]->user->bot_ID == 0) listData[index]->user->bot_ID = (rand() % 10000);
         labelRaccoon->setPixmap(QPixmap(":/pages/anger.png"));
         startButton->setEnabled(false);
         listEmulators->setEnabled(false);
@@ -100,10 +100,10 @@ void MainWindow::createMainTab(QWidget *tab,int index) {
         stopButton->setStyleSheet("background-color:red; color:white;");
         botThreads[index]->start();
         QMetaObject::invokeMethod(listData[index]->controller,"Start",Qt::QueuedConnection,
-                                  Q_ARG(userProfile*,tempUser),Q_ARG(ErrorList*,nullptr));
+                                  Q_ARG(userProfile*,listData[index]->user),Q_ARG(ErrorList*,nullptr));
     });
 
-    connect(tempController,&Controller::endStart,this,[=]() {
+    connect(listData[index]->controller,&Controller::endStart,this,[=]() {
         // Удаляем старый виджет
         if (listData[index]->accountInfo) {
             listData[index]->accountInfo->hide();
@@ -112,71 +112,88 @@ void MainWindow::createMainTab(QWidget *tab,int index) {
         }
         // Создаем новый
         listData[index]->accountInfo = new QWidget(tab);
-        listData[index]->accountInfo->setGeometry(0,0,380,200);
-        tempUser->getInfo(listData[index]->accountInfo);
+        listData[index]->accountInfo->setGeometry(4,0,380,200);
+        listData[index]->user->getInfo(listData[index]->accountInfo);
         listData[index]->accountInfo->show();
 
-        if(tempUser->subscribe == typeSub::admin) {
+        if(listData[index]->user->subscribe == typeSub::admin) {
             listErrorLogs[index]->show();
             labelRaccoon->setPixmap(QPixmap(":/pages/cute.png"));
         }
 
         tabWidget->setTabText(index,QString::number(listData[index]->user->user_ID));
 
-        emit tempController->saveTaskQueue(index);
+        emit listData[index]->controller->saveTaskQueue(index);
     },Qt::QueuedConnection);
 
-    connect(tempController,&Controller::stopStart,tempController,&Controller::Stop,Qt::QueuedConnection);
+    connect(listData[index]->controller,&Controller::stopStart,listData[index]->controller,&Controller::Stop,Qt::QueuedConnection);
 
     connect(stopButton,&QPushButton::clicked,this,[=]{
         usedEmulators.removeAll(listEmulators->currentText());
         labelRaccoon->setPixmap(QPixmap(":/pages/what.png"));
         stopButton->setEnabled(false);
-        stopButton->setStyleSheet("background-color:gray");
+        stopButton->setStyleSheet("background-color: gray; color: white");
         startButton->setEnabled(true);
         listEmulators->setEnabled(true);
-        startButton->setStyleSheet("background-color:green");
-        if(listData[index]->currentTask < 0) emit tempController->stopStart();
+        startButton->setStyleSheet("background-color: green");
+        if(listData[index]->currentTask < 0) emit listData[index]->controller->stopStart();
         else emit listData[index]->stopTask();
         botThreads[index]->wait();
     });
 
+    connect(this, &MainWindow::loadMainPage,this,[=](){
+        //предполагается, что память о прошлом "юзере" почистилась в "верхнем уровне функции", почистился только userProfile & Emulator
+        if (listData[index]->accountInfo) {
+            listData[index]->accountInfo->hide();
+            listData[index]->accountInfo->deleteLater();
+            listData[index]->accountInfo = nullptr;
+        }
+        // Создаем новый
+        listData[index]->accountInfo = new QWidget(tab);
+        listData[index]->accountInfo->setGeometry(4, 0, 380, 200);
+        listData[index]->user->getInfo(listData[index]->accountInfo, "color: orange;");
+        listData[index]->accountInfo->show();
+        emit stopButton->clicked();
+        listEmulators->setMyText(listData[index]->user->emulator_name);
+        tabWidget->setTabText(index,QString::number(listData[index]->user->user_ID));
+    },Qt::QueuedConnection);
 }
 
-void MainWindow::getSettings(int index) {
-    //предобработку с учетом подписки юзера сделать
-    //сначала эмит в контроллер на сбор эмоций, чисто на секунду задержаться чтобы собрать все дерьмо
-    QSharedPointer<GeneralData> localData = listData[index];
-    localData->hashTasks.clear();
-    localData->listTasks.clear();
-    localData->listSettings.clear();
-    QList<QString> orderedTask;
-    int curId = 0;
-    for(const QString &item : localData->listTaskQueue)
-        if(!localData->hashTasks.contains(item)) {
-            localData->hashTasks[item] = curId++;
-            orderedTask.append(item);
-        }
-    //далее идут эмиты для сбора и сохранения настроек в каждый заданий
-    for(const QString& key : orderedTask) {
-        int name = hashTask[key];
-        // nameTasks << "Арена" 0<< "Башня" 1<< "Бухта" 2<< "Грабежи" 3<< "Ивент" 4
-                  // << "Колизей" 5<< "Маяк" 6<< "Подземелье" 7<< "Портал" 8<< "Разное" 9
-                  // << "Собор" 10;
-        switch (name) {
-            //case case case emit emit emit
-        case 0:
-            emit getArenaSettings(index);
-            break;
-        case 6:
-            emit getLighthouseSettings(index);
-            break;
-        case 10:
-            emit getCathedralSettings(index);
-            break;
-        default:
-            localData->controller->LocalLogging("Ошибка создания задания " + key);
-            break;
+void MainWindow::serializeMainPage(int index) {
+    QString path{"user/" + QString::number(listData[index]->user->user_ID)};
+    QDir dir(path);
+    if (!dir.exists()) {
+        if (!dir.mkpath(".")) {
+            QMessageBox::critical(this, "Ошибка", "Не удалось создать папку " + QDir::current().filePath(path), QMessageBox::Ok);
+            return; // или обработка ошибки
         }
     }
+    QByteArray byteArray = MainPageSerializes::toBinary(listData[index]->user,listData[index]->emulator);
+    QFile file(path + "/acc.mrc");
+    // Открываем файл перед записью
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QMessageBox::critical(nullptr, "Ошибка", "Не удалось открыть файл для записи: " + file.errorString(), QMessageBox::Ok);
+        return;
+    }
+    file.write(byteArray);
+    file.close();
 }
+
+void MainWindow::unSerializeMainPage(const QString &accountId, int index) {
+    QFile file("user/" + accountId + "/acc.mrc");
+    if (!file.open(QIODevice::ReadOnly)) {
+        QMessageBox::critical(nullptr, "Ошибка", "Не удалось открыть файл для записи: " + file.errorString(), QMessageBox::Ok);
+        return;
+    }
+
+    QByteArray byteArray = file.readAll();
+    file.close();
+
+    bool result = MainPageSerializes::fromBinary(byteArray, listData[index]->user, listData[index]->emulator);
+    if(!result) {
+        qWarning() << "Ошбика десериализации";
+        return;
+    }
+    emit loadMainPage();
+}
+

@@ -1,4 +1,5 @@
-#include "mainwindow.h"
+#include "MainWindow/MainWindow.h"
+#include "MyClasses/GeneralData.h"
 
 #include <QCheckBox>
 #include <QRadioButton>
@@ -17,37 +18,43 @@
 #include "Controller/Controller.h"
 #include "User/UserProfile.h"
 
-#include "generaldata.h"
-
 void MainWindow::createArenaTab(QWidget *tab,int index) {
     QCheckBox* adsTask = new QCheckBox("Смотреть рекламу",tab);
+    adsTask->setObjectName("adsTask");
     adsTask->setGeometry(5,0,175,20);
 
     QCheckBox* chestTask = new QCheckBox("Автооткрытие сундуков",tab);
-    chestTask->setGeometry(190,0,185,20);
+    chestTask->setObjectName("chestTask");
+    chestTask->setGeometry(175,0,200,20);
 
     QRadioButton* bestButton = new QRadioButton("Выставить лучших",tab);
+    bestButton->setObjectName("bestButton");
     bestButton->setGeometry(5,25,175,20);
 
     QRadioButton* lastButton = new QRadioButton("Предыдущий отряд",tab);
+    lastButton->setObjectName("lastButton");
     lastButton->setGeometry(5,50,175,20);
     lastButton->setChecked(true);
 
     QRadioButton* barrackButton = new QRadioButton("Отряд с казармы",tab);
+    barrackButton->setObjectName("barrackButton");
     barrackButton->setGeometry(5,75,175,20);
 
     QButtonGroup* squad = new QButtonGroup(tab);
+    squad->setObjectName("squad");
     squad->addButton(bestButton);
     squad->addButton(lastButton);
     squad->addButton(barrackButton);
 
     QComboBox *algorithmBox = new QComboBox(tab);
-    algorithmBox->setGeometry(190,25,155,20);
+    algorithmBox->setObjectName("algorithmBox");
+    algorithmBox->setGeometry(175,25,170,20);
     algorithmBox->addItem("Cтабильный алгоритм");
     algorithmBox->addItem("Умный алгоритм");
     algorithmBox->addItem("Свой алгоритм");
 
     QPushButton *setAlgorithm = new QPushButton(tab);
+    setAlgorithm->setObjectName("setAlgorithm");
     setAlgorithm->setGeometry(350,25,20,20);
     setAlgorithm->setEnabled(false);
 
@@ -57,21 +64,28 @@ void MainWindow::createArenaTab(QWidget *tab,int index) {
     });
 
     QMenu *setMenu = new QMenu(tab);
+    setMenu->setObjectName("setMenu");
     QWidget *setWidget = new QWidget();
+    setWidget->setObjectName("setWidget");
     QGridLayout *setLayout = new QGridLayout(setWidget);
     QComboBox *setPhaseOneBox = new QComboBox(setWidget);
+    setPhaseOneBox->setObjectName("setPhaseOneBox");
     setPhaseOneBox->addItem("Выше себя");
     setPhaseOneBox->addItem("Ниже себя");
     QComboBox *setPhaseTwoBox = new QComboBox(setWidget);
+    setPhaseTwoBox->setObjectName("setPhaseTwoBox");
     setPhaseTwoBox->addItem("Выше себя");
     setPhaseTwoBox->addItem("Ниже себя");
     QComboBox *setPhaseThreeBox = new QComboBox(setWidget);
+    setPhaseThreeBox->setObjectName("setPhaseThreeBox");
     setPhaseThreeBox->addItem("Выше себя");
     setPhaseThreeBox->addItem("Ниже себя");
     QComboBox *setPhaseFourBox = new QComboBox(setWidget);
+    setPhaseFourBox->setObjectName("setPhaseFourBox");
     setPhaseFourBox->addItem("Выше себя");
     setPhaseFourBox->addItem("Ниже себя");
     QComboBox *setPhaseFiveBox = new QComboBox(setWidget);
+    setPhaseFiveBox->setObjectName("setPhaseFiveBox");
     setPhaseFiveBox->addItem("Выше себя");
     setPhaseFiveBox->addItem("Ниже себя");
 
@@ -93,9 +107,11 @@ void MainWindow::createArenaTab(QWidget *tab,int index) {
     setAlgorithm->setMenu(setMenu);
 
     QLabel* powerLabel = new QLabel("Множитель мощи",tab);
-    powerLabel->setGeometry(190,50,140,20);
+    powerLabel->setObjectName("powerLabel");
+    powerLabel->setGeometry(175,50,155,20);
 
     QLineEdit* powerLine = new QLineEdit(tab);
+    powerLine->setObjectName("powerLine");
     powerLine->setGeometry(340,50,35,20);
     powerLine->setText("1.0");
     QDoubleValidator* powerValid = new QDoubleValidator(0.0,9.9,1,tab);
@@ -112,17 +128,21 @@ void MainWindow::createArenaTab(QWidget *tab,int index) {
     });
 
     QCheckBox *BLBox = new QCheckBox("BlackList",tab);
-    BLBox->setGeometry(190,75,90,20);
+    BLBox->setObjectName("BLBox");
+    BLBox->setGeometry(175,75,105,20);
     BLBox->setChecked(true);
 
     QCheckBox *WLBox = new QCheckBox("WhiteList",tab);
+    WLBox->setObjectName("WLBox");
     WLBox->setGeometry(285,75,90,20);
     WLBox->setChecked(true);
 
     QLabel* resourceLabel = new QLabel("Расходовать",tab);
-    resourceLabel->setGeometry(190,100,90,20);
+    resourceLabel->setObjectName("resourceLabel");
+    resourceLabel->setGeometry(175,100,90,20);
 
     QComboBox* resourceBox = new QComboBox(tab);
+    resourceBox->setObjectName("resourceBox");
     resourceBox->setGeometry(275,100,100,20);
     resourceBox->addItem("Яблоки");
     resourceBox->addItem("Билеты");
@@ -130,9 +150,11 @@ void MainWindow::createArenaTab(QWidget *tab,int index) {
     resourceBox->addItem("Билеты > Яблоки");
 
     QLabel* countLabel = new QLabel("Количество турниров",tab);
-    countLabel->setGeometry(190,125,150,20);
+    countLabel->setObjectName("countLabel");
+    countLabel->setGeometry(175,125,150,20);
 
     QComboBox* countBox = new QComboBox(tab);
+    countBox->setObjectName("countBox");
     countBox->setGeometry(335,125,40,20);
     countBox->addItem("1");
     countBox->addItem("2");
@@ -146,9 +168,11 @@ void MainWindow::createArenaTab(QWidget *tab,int index) {
     countBox->addItem("∞");
 
     QLabel* foodLabel = new QLabel("Сохранять еды",tab);
-    foodLabel->setGeometry(190,150,130,20);
+    foodLabel->setObjectName("foodLabel");
+    foodLabel->setGeometry(175,150,145,20);
 
     QLineEdit* foodLine = new QLineEdit(tab);
+    foodLine->setObjectName("foodLine");
     foodLine->setGeometry(305,150,70,20);
     foodLine->setText("0");
     QIntValidator* foodValid = new QIntValidator(0, 2000000,tab);
@@ -185,7 +209,7 @@ void MainWindow::createArenaTab(QWidget *tab,int index) {
         else if(lastButton->isChecked()) settings->modeSquad = 1;
         else if(barrackButton->isChecked()) {
             settings->modeSquad = 2;
-            for(int i = 0; i < 8; i++) {
+            for(int i = 0; i < 8; ++i) {
                 typeSet temp;
                 emit getUnitSet(tab,i,temp);
                 settings->squadSet.append(temp);
@@ -256,3 +280,4 @@ void MainWindow::createArenaTab(QWidget *tab,int index) {
         tab->setEnabled(true);
     });
 }
+
