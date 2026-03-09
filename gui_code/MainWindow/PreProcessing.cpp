@@ -1,5 +1,7 @@
 #include "MainWindow.h"
 #include "MyClasses/GeneralData.h"
+#include "MyClasses/InformationPanel.h"
+#include "MyClasses/ReportPanel.h"
 
 #include <QThread>
 #include <QMenuBar>
@@ -7,6 +9,7 @@
 #include "Controller/Controller.h"
 #include "User/UserProfile.h"
 #include "Ocr/Ocr.h"
+
 
 void MainWindow::preProcessingData() {
     //в будущем загрузка сохраненных вкладок и прочего, пока что всегда новое
@@ -103,21 +106,35 @@ void MainWindow::preProcessingMenuBar() {
     //Связь со мной
     QMenu *linkMenu = new QMenu("Связь со мной", this);
     QAction *TgChannel = new QAction("Телеграмм-канал бота",this);
-    QAction *DsChannel = new QAction("Дискорд чат(недоступен в РФ)",this);
+    QAction *DsChannel = new QAction("Дискорд чат (недоступен в РФ)",this);
 
     linkMenu->addAction(TgChannel);
     linkMenu->addAction(DsChannel);
 
     // Лицензия программы
-    QAction *myAbout = new QAction("Лицензии программы",mainWidget);
+    QAction *myAbout = new QAction("Лицензии программы",this);
 
     aboutProgram->addMenu(botMenu);
     aboutProgram->addMenu(linkMenu);
     aboutProgram->addAction(myAbout);
 
     //Прочие действия без меню
-    QAction *manual = new QAction("Инструкция",this);
+    QAction *manual = new QAction("Руководство",this);
+    connect(manual, &QAction::triggered, this, [=](){
+        if(informationPanel == nullptr) informationPanel = new InformationPanel(this);
+        informationPanel->showMe();
+        informationPanel->raise();
+        informationPanel->activateWindow();
+    });
     QAction *bugReport = new QAction("Сообщить об ошибке",this);
+    connect(bugReport, &QAction::triggered, this, [=](){
+        QString str = "0";
+        userProfile *temp = listData[tabWidget->currentIndex()]->user;
+        if(temp != nullptr) str = QString::number(temp->user_ID);
+        ReportPanel *panel = new ReportPanel(str);
+        temp = nullptr;
+        str.clear();
+    });
 
     menuBar->addMenu(generalMenu);
     menuBar->addAction(manual);

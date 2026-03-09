@@ -11,6 +11,7 @@
 struct GeneralData;
 struct userProfile;
 struct ErrorList;
+class InformationPanel;
 
 class MainWindow : public QMainWindow
 {
@@ -38,11 +39,12 @@ public:
     void saveData(); //rename to saveUserData
     void loadData();
 
-    //tab
+    //drawers
     void createGUI();
-    void createLoggerTab(QWidget *tab, int index);
     void createUnitsWidget(QWidget *mainTab, QWidget *widget);
     void createHeroWidget(QWidget *mainTab, QWidget *widget);
+    void createTitanWidget(QWidget *mainTab, QWidget *widget);
+    void createPetsWidget(QWidget *mainTab, QWidget *widget);
 
     //main
     void createMainTab(QWidget *tab, int index);
@@ -61,6 +63,9 @@ public:
 
     //lighthouse
     void createLighthouseTab(QWidget *tab, int index);
+
+    //logger
+    void createLoggerTab(QWidget *tab, int index);
 signals:
     //serialize
     void serializeApplication(int id);
@@ -69,6 +74,7 @@ signals:
     void getUnitSet(QWidget *tab, int index, typeSet &set);
     void getUnits();
     void getHeroRelics(QWidget *tab, int &set, QStringList &relics);
+    //void getTitans();
     //void serializeUnits(...);
     //void serializeHero(...);
 
@@ -96,6 +102,7 @@ private:
     QList<QString> usedEmulators;
 
     QTabWidget *tabWidget;
+    InformationPanel *informationPanel;
 
     QList<QThread*> botThreads;
     QList<QSharedPointer<GeneralData>> listData;

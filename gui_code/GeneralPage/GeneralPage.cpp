@@ -29,7 +29,6 @@ void MainWindow::createGeneralTab(QWidget *tab, int index) {
     taskWidget->setDragDropMode(QAbstractItemView::InternalMove);
 
     QLabel* nameFile = new QLabel("Название сценария",tab);
-    nameFile->setObjectName("nameFile");
     nameFile->setAlignment(Qt::AlignCenter);
     nameFile->setGeometry(5,265,160,20);
 
@@ -43,14 +42,11 @@ void MainWindow::createGeneralTab(QWidget *tab, int index) {
 
     QPushButton* addTask = new QPushButton("Добавить\n"
                                            "задание",tab);
-    addTask->setObjectName("addTask");
     addTask->setGeometry(175,5,95,40); //*,10,*,*
 
     QMenu *addMenu = new QMenu(tab);
-    addMenu->setObjectName("addMenu");
     for(int i = 0, n = nameTasks.size(); i < n; ++i){
         QAction *soborAct = addMenu->addAction(nameTasks[i]);
-        soborAct->setObjectName("addMenuAction");
         connect(soborAct,&QAction::triggered,this,[=](){
             taskWidget->addItem(nameTasks[i]);
         });
@@ -59,7 +55,6 @@ void MainWindow::createGeneralTab(QWidget *tab, int index) {
 
     QPushButton* removeTask = new QPushButton("Удалить\n"
                                               "задание",tab);
-    removeTask->setObjectName("removeTask");
     removeTask->setGeometry(280,5,95,40);// *,10,*,*
 
     connect(removeTask, &QPushButton::clicked,this,[=](){
@@ -100,7 +95,6 @@ void MainWindow::createGeneralTab(QWidget *tab, int index) {
     taker->setFixedSize(210,20);
 
     QLabel* takeTask = new QLabel("Запрос ресурсов",taker);
-    takeTask->setObjectName("takeTask");
     takeTask->setAlignment(Qt::AlignLeft);
     takeTask->setGeometry(0,0,120,20);
 
@@ -127,7 +121,6 @@ void MainWindow::createGeneralTab(QWidget *tab, int index) {
     subTab->setLayout(layout);
 
     QPushButton* addFile = new QPushButton("Сохранить",tab);
-    addFile->setObjectName("addFile");
     addFile->setGeometry(195,290,85,25);
 
     connect(addFile, &QPushButton::clicked,this,[=](){
@@ -141,7 +134,7 @@ void MainWindow::createGeneralTab(QWidget *tab, int index) {
     });
 
     QPushButton* loadFile = new QPushButton("Загрузить",tab);
-    loadFile->setObjectName("loadFile");
+    loadFile->setObjectName("loadFile"); //мб QMenu потом с вариантами из доступных сохранений?
     loadFile->setGeometry(290,290,85,25);
 
     connect(loadFile,&QPushButton::clicked,this,[=](){

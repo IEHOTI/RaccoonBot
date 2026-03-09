@@ -36,7 +36,7 @@ void GeneralData::executeTasks(){
     ErrorList result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     while(true) {
         currentTask = 0;
-        for(int n = listTaskQueue.size(); currentTask < n; currentTask++) {
+        for(int n = listTaskQueue.size(); currentTask < n; ++currentTask) {
             int curIndex = hashTasks[listTaskQueue[currentTask]];
             QMetaObject::Connection stopConnection;
             stopConnection = connect(this, &GeneralData::stopTask, this, [this,&curIndex]() {

@@ -2,7 +2,6 @@
 
 #include <QApplication>
 #include <QStyleFactory>
-#include <QPalette>
 
 int main(int argc, char *argv[])
 {

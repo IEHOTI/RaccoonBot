@@ -17,10 +17,6 @@ struct GeneralData : public QObject
 public:
     ~GeneralData();
     void getCurrentTaskObj(Task *result,int index) {result = listTasks[index];}
-    //void saveData();
-    //void loadData();
-    //void saveTaskSettings(const QString &strId, bool *result);
-    //void loadTaskSettings(const QString &strId, bool *result);
     void saveEmulator(Emulator* emulator);
 
 public slots:

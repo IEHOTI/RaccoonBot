@@ -1,27 +1,19 @@
 #include "MainWindow.h"
 
-#include <QSettings>
-#include <QString>
 #include <QTabWidget>
 #include <QMetaProperty>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QRadioButton>
-#include <QLabel>
 #include <QLineEdit>
-#include <QString>
 #include <QMenu>
 #include <QPushButton>
-#include <QVBoxLayout>
-#include <QCheckBox>
-#include <QComboBox>
-#include <QDir>
-#include <QMessageBox>
-#include <QFileDialog>
 #include <QMetaObject>
 #include <QButtonGroup>
 #include <QVariantMap>
 #include <QWidgetAction>
+#include <QFile>
+#include <QMessageBox>
 
 void MainWindow::serializeAllPage(int id, QTabWidget *taskTabWidget) {
     QVariantMap allSettings;

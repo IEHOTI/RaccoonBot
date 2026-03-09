@@ -6,100 +6,219 @@
 #include <QComboBox>
 #include <QLineEdit>
 #include <QIntValidator>
+#include <QPushButton>
+#include <QMenu>
+#include <QWidgetAction>
+#include <QHBoxLayout> // delete later?
 
 #include "Lighthouse/LighthouseSettings.h"
 #include "Lighthouse/Lighthouse.h"
 #include "User/UserProfile.h"
 
+
+
 void MainWindow::createLighthouseTab(QWidget *tab, int index) {
-    QCheckBox* adsTask = new QCheckBox("Смотреть рекламу",tab);
-    adsTask->setObjectName("adsTask");
-    adsTask->setGeometry(5,0,175,20);
+    QHBoxLayout *mainLayout = new QHBoxLayout(tab);
+    mainLayout->setObjectName("lighthouseMainLayout");
 
-    QCheckBox* chestTask = new QCheckBox("Автооткрытие сундуков",tab);
-    chestTask->setObjectName("chestTask");
-    chestTask->setGeometry(175,0,185,20);
+    //left start
+    QWidget *leftWidget = new QWidget(tab);
+    leftWidget->setObjectName("lighthouseLeftWidget");
+    QVBoxLayout *leftLayout = new QVBoxLayout(leftWidget);
+    leftLayout->setObjectName("lighthouseLeftLayout");
+    leftLayout->setContentsMargins(0, 0, 0, 0);
+    leftLayout->setSpacing(0);
 
-    QLabel *labelRefresh = new QLabel("Частота обновлений",tab);
-    labelRefresh->setObjectName("labelRefresh");
-    labelRefresh->setGeometry(15,25,150,20);
+    QLabel *labelRefresh = new QLabel("Обновлять список противников", tab);
+    leftLayout->addWidget(labelRefresh);
 
     QComboBox *algorithmBox = new QComboBox(tab);
     algorithmBox->setObjectName("algorithmBox");
-    algorithmBox->setGeometry(5,60,160,20);
-    algorithmBox->addItem("При первом поражении");
-    algorithmBox->addItem("Каждые 3 удара");
-    algorithmBox->addItem("Каждые 5 ударов");
+    algorithmBox->addItems({"При первом поражении","Каждые 3 атаки","Каждые 5 атак"});
+    leftLayout->addWidget(algorithmBox);
 
-    QLabel *labelUseDiamond = new QLabel("Использование кристаллов",tab);
-    labelUseDiamond->setObjectName("labelUseDiamond");
-    labelUseDiamond->setGeometry(175,45,185,20);
+    QWidget *squadWidget = new QWidget(leftWidget);
+    squadWidget->setObjectName("lighthouseSquadWidget");
+    QHBoxLayout *squadLayout = new QHBoxLayout(squadWidget);
+    squadLayout->setObjectName("lighthouseSquadLayout");
+    squadLayout->setContentsMargins(0, 0, 0, 0);
 
-    QCheckBox *useRefresh = new QCheckBox("Обновление",tab);
-    useRefresh->setObjectName("useRefresh");
-    useRefresh->setGeometry(175,75,140,20);
+    QLabel *squadLabel = new QLabel("Отряд", squadWidget);
+    squadLayout->addWidget(squadLabel);
+    squadLabel->setFixedWidth(61);
 
-    QLineEdit *lineRefresh = new QLineEdit(tab);
-    lineRefresh->setObjectName("lineRefresh");
-    lineRefresh->setGeometry(340,75,35,20);
-    lineRefresh->setEnabled(false);
-    lineRefresh->setText("1");
+    QComboBox *squadBox = new QComboBox(squadWidget);
+    squadBox->setObjectName("squadBox");
+    squadBox->addItems({"Не трогать", "Изменить"});
+    squadLayout->addWidget(squadBox);
 
-    connect(useRefresh,&QCheckBox::toggled,this,[=](bool checked) {
-        lineRefresh->setEnabled(checked);
+    QPushButton *squadButton = new QPushButton(squadWidget);
+    squadButton->setObjectName("squadButton");
+    squadButton->setFixedWidth(30);
+    QMenu *squadMenu = new QMenu(squadWidget);
+    squadMenu->setObjectName("squadMenu");
+
+    QWidget *unitsWidget = new QWidget(squadWidget);
+    unitsWidget->setObjectName("lighthouseUnitsWidget");
+    createUnitsWidget(tab, unitsWidget);
+
+    QWidgetAction *squadAction = new QWidgetAction(squadMenu);
+    squadAction->setObjectName("squadAction");
+    squadAction->setDefaultWidget(unitsWidget);
+    squadMenu->addAction(squadAction);
+    squadButton->setMenu(squadMenu);
+    squadButton->setEnabled(false);
+
+    connect(squadBox, &QComboBox::currentIndexChanged, this, [=](int index){
+        squadButton->setEnabled(index != 0);
     });
 
-    QIntValidator *validRefresh = new QIntValidator(0,100,tab);
-    lineRefresh->setValidator(validRefresh);
+    squadLayout->addWidget(squadButton);
+    leftLayout->addWidget(squadWidget);
 
-    QCheckBox *useAttack = new QCheckBox("Атака",tab);
-    useAttack->setObjectName("useAttack");
-    useAttack->setGeometry(175,105,140,20);
+    QWidget *heroWidget = new QWidget(leftWidget);
+    heroWidget->setObjectName("lighthouseHeroWidget");
+    createHeroWidget(tab, heroWidget);
+    heroWidget->setEnabled(true);
+    leftLayout->addWidget(heroWidget);
 
-    QLineEdit *lineAttack = new QLineEdit(tab);
-    lineAttack->setObjectName("lineAttack");
-    lineAttack->setGeometry(340,105,35,20);
-    lineAttack->setEnabled(false);
-    lineAttack->setText("1");
+    QWidget *petsWidget = new QWidget(leftWidget);
+    petsWidget->setObjectName("lighthousePetsWidget");
+    createPetsWidget(tab, petsWidget);
+    petsWidget->setEnabled(true);
+    leftLayout->addWidget(petsWidget);
 
-    connect(useAttack,&QCheckBox::toggled,this,[=](bool checked) {
-        lineAttack->setEnabled(checked);
-    });
-    lineAttack->setValidator(validRefresh);
+    QWidget *titansWidget = new QWidget(leftWidget);
+    titansWidget->setObjectName("lighthouseTitansWidget");
+    createTitanWidget(tab, titansWidget);
+    titansWidget->setEnabled(true);
+    leftLayout->addWidget(titansWidget);
 
-    QLabel* powerLabel = new QLabel("Множитель мощи",tab);
-    powerLabel->setObjectName("powerLabel");
-    powerLabel->setGeometry(175,145,140,20);
+    leftWidget->setMinimumWidth(190);
+    //left end
 
-    QLineEdit* powerLine = new QLineEdit(tab);
+    //right start
+    QWidget *rightWidget = new QWidget(tab);
+    rightWidget->setObjectName("lighthouseRightWidget");
+    QVBoxLayout *rightLayout = new QVBoxLayout(rightWidget);
+    rightLayout->setObjectName("lighthouseRightLayout");
+    rightLayout->setContentsMargins(0, 0, 0, 0);
+    rightLayout->setSpacing(0);
+
+    QWidget *checkBoxWidget = new QWidget(rightWidget);
+    checkBoxWidget->setObjectName("lighthouseCheckBoxWidget");
+    checkBoxWidget->setFixedHeight(80);
+    QVBoxLayout *checkBoxLayout = new QVBoxLayout(checkBoxWidget);
+    checkBoxLayout->setObjectName("lighthouseCheckBoxLayout");
+    checkBoxLayout->setContentsMargins(0, 0, 0, 0);
+    checkBoxLayout->setSpacing(0);
+
+    QCheckBox *adsTask = new QCheckBox("Смотреть рекламу", checkBoxWidget);
+    adsTask->setObjectName("adsTask");
+    adsTask->setFixedHeight(40);
+    checkBoxLayout->addWidget(adsTask);
+
+    QCheckBox *chestTask = new QCheckBox("Автооткрытие сундуков", checkBoxWidget);
+    chestTask->setObjectName("chestTask");
+    chestTask->setFixedHeight(40);
+    checkBoxLayout->addWidget(chestTask);
+
+    rightLayout->addWidget(checkBoxWidget);
+
+    QWidget *powerWidget = new QWidget(rightWidget);
+    powerWidget->setObjectName("lighthousePowerWidget");
+    powerWidget->setFixedHeight(40);
+    QHBoxLayout *powerLayout = new QHBoxLayout(powerWidget);
+    powerLayout->setObjectName("lighthousePowerLayout");
+    powerLayout->setContentsMargins(0, 0, 0, 0);
+
+    QLabel *powerLabel = new QLabel("Множитель мощи", powerWidget);
+    powerLayout->addWidget(powerLabel);
+
+    QLineEdit *powerLine = new QLineEdit(powerWidget);
     powerLine->setObjectName("powerLine");
-    powerLine->setGeometry(340,145,35,20);
+    powerLine->setFixedSize(35, 20);
     powerLine->setText("1.0");
+    powerLayout->addWidget(powerLine);
 
-    QDoubleValidator* powerValid = new QDoubleValidator(0.0,9.9,1,tab);
+    QDoubleValidator *powerValid = new QDoubleValidator(0.0, 9.9, 1, powerWidget);
+    powerValid->setObjectName("powerValidator");
     powerValid->setNotation(QDoubleValidator::StandardNotation);
     powerValid->setLocale(QLocale::C);
     powerLine->setValidator(powerValid);
 
-    QCheckBox *BLBox = new QCheckBox("BlackList",tab);
+    rightLayout->addWidget(powerWidget);
+
+    QCheckBox *BLBox = new QCheckBox("BlackList", rightWidget);
     BLBox->setObjectName("BLBox");
-    BLBox->setGeometry(175,175,90,20);
     BLBox->setChecked(true);
+    rightLayout->addWidget(BLBox);
 
-    QCheckBox *WLBox = new QCheckBox("WhiteList",tab);
+    QCheckBox *WLBox = new QCheckBox("WhiteList", rightWidget);
     WLBox->setObjectName("WLBox");
-    WLBox->setGeometry(285,175,90,20);
     WLBox->setChecked(true);
+    rightLayout->addWidget(WLBox);
 
-    ////////////
-    QWidget *unitFirstWidget = new QWidget(tab);
-    createUnitsWidget(tab,unitFirstWidget);
-    unitFirstWidget->setEnabled(true);
+    QLabel *labelUseDiamond = new QLabel("Использование кристаллов", tab);
+    labelUseDiamond->setFixedHeight(40);
+    rightLayout->addWidget(labelUseDiamond);
 
-    QWidget *heroWidget = new QWidget(tab);
-    createHeroWidget(tab, heroWidget);
-    heroWidget->setEnabled(true);
-    ///////
+    QWidget *refreshWidget = new QWidget(rightWidget);
+    refreshWidget->setObjectName("lighthouseRefreshWidget");
+    refreshWidget->setFixedHeight(40);
+    QHBoxLayout *refreshLayout = new QHBoxLayout(refreshWidget);
+    refreshLayout->setObjectName("lighthouseRefreshLayout");
+    refreshLayout->setContentsMargins(0, 0, 0, 0);
+
+    QCheckBox *refreshBox = new QCheckBox("Обновление", refreshWidget);
+    refreshBox->setObjectName("refreshBox");
+    refreshLayout->addWidget(refreshBox);
+
+    QLineEdit *refreshLine = new QLineEdit(refreshWidget);
+    refreshLine->setObjectName("refreshLine");
+    refreshLine->setFixedSize(35, 20);
+    refreshLine->setEnabled(false);
+    refreshLine->setText("1");
+    refreshLayout->addWidget(refreshLine);
+
+    connect(refreshBox, &QCheckBox::toggled, this, [=](bool checked) {
+        refreshLine->setEnabled(checked);
+    });
+
+    QIntValidator *intValid = new QIntValidator(0, 100, refreshWidget);
+    intValid->setObjectName("refreshValidator");
+    refreshLine->setValidator(intValid);
+
+    rightLayout->addWidget(refreshWidget);
+
+    QWidget *attackWidget = new QWidget(rightWidget);
+    attackWidget->setObjectName("lighthouseAttackWidget");
+    attackWidget->setFixedHeight(40);
+    QHBoxLayout *attackLayout = new QHBoxLayout(attackWidget);
+    attackLayout->setObjectName("lighthouseAttackLayout");
+    attackLayout->setContentsMargins(0, 0, 0, 0);
+
+    QCheckBox *attackBox = new QCheckBox("Атака", attackWidget);
+    attackBox->setObjectName("attackBox");
+    attackLayout->addWidget(attackBox);
+
+    QLineEdit *attackLine = new QLineEdit(attackWidget);
+    attackLine->setObjectName("attackLine");
+    attackLine->setFixedSize(35, 20);
+    attackLine->setEnabled(false);
+    attackLine->setText("1");
+    attackLayout->addWidget(attackLine);
+
+    connect(attackBox, &QCheckBox::toggled, this, [=](bool checked) {
+        attackLine->setEnabled(checked);
+    });
+    attackLine->setValidator(intValid);
+
+    rightLayout->addWidget(attackWidget);
+    //right end
+
+    mainLayout->addWidget(leftWidget);
+    mainLayout->addWidget(rightWidget);
 
     int fixedIndex = index;
     connect(this,&MainWindow::getLighthouseSettings,this,[=](int local_index){
@@ -118,8 +237,8 @@ void MainWindow::createLighthouseTab(QWidget *tab, int index) {
             listErrorLogs[fixedIndex]->append("append set " + QString::number(static_cast<int>(temp)));
         }
         settings->openChest = chestTask->isChecked();
-        if(useRefresh->isChecked()) settings->diamondRefresh = lineRefresh->text().toInt();
-        if(useAttack->isChecked()) settings->diamondAttack = lineAttack->text().toInt();
+        if(refreshBox->isChecked()) settings->diamondRefresh = refreshLine->text().toInt();
+        if(attackBox->isChecked()) settings->diamondAttack = attackLine->text().toInt();
         settings->black = BLBox->isChecked();
         settings->white = WLBox->isChecked();
         if(algorithmBox->currentIndex() == 0) settings->modeRefresh = -1;

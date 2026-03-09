@@ -31,6 +31,8 @@ MainWindow::MainWindow(QWidget *parent)
     nameTasks << "Арена" << "Башня" << "Бухта" << "Грабежи" << "Ивент"
               << "Колизей" << "Маяк" << "Подземелье" << "Портал" << "Разное"
               << "Собор";
+    informationPanel = nullptr;
+
     for(int i = 0, n = nameTasks.size(); i < n; i++) hashTask[nameTasks[i]] = i;
     preProcessingData();
     preProcessingMenuBar();
