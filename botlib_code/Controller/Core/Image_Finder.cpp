@@ -99,14 +99,6 @@ void Controller::compareSample(const QString &pagePath, const QString &samplePat
     ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     //Нахождение координат обрезаемой области(findObject)
     emit errorLogging("Converting mask: " + (pagePath + "/" + maskPath));
-
-    // bool hasImage = false;
-    // lib->has(mainPath + "/" + pagePath + "/" + maskPath + ".png",hasImage);
-    // if(!hasImage) throw ImageException(QString("Hasnt image " + mainPath + "/" + pagePath + "/" + maskPath + ".png").toStdString());
-    // else lib->get(mainPath + "/" + pagePath + "/" + maskPath + ".png", m_mask);
-    // why not setMask???
-    // convertImage(QImage((mainPath + "/" + pagePath + "/" + maskPath + ".png")), &m_mask, &l_result);
-
     setMask(pagePath + "/" + maskPath,&l_result);
     if(!l_result) {
         observer.value = l_result;
@@ -121,11 +113,6 @@ void Controller::compareSample(const QString &pagePath, const QString &samplePat
         return;
     }
     emit errorLogging("Converting sample: " + (pagePath + "/" + samplePath));
-
-    // lib->has(mainPath + "/" + pagePath + "/" + samplePath + ".png", hasImage);
-    // if(!hasImage) throw ImageException(QString("Hasnt image " + mainPath + "/" + pagePath + "/" + samplePath + ".png").toStdString());
-    // else lib->get(mainPath + "/" + pagePath + "/" + samplePath + ".png", m_sample);
-    //convertImage(QImage((mainPath + "/" + pagePath + "/" + samplePath + ".png")), &m_sample,&l_result);
 
     setSample(pagePath + "/" + samplePath,&l_result);
     if(!l_result) {

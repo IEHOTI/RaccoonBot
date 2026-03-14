@@ -6,14 +6,16 @@
 
 void Controller::click(ErrorList *result, int count, int delay) {
     QCoreApplication::processEvents();
+
     ErrorObserver observer(result);
     connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
+    ErrorList l_result = {m_Warning::NO_WARN, m_Error::NO_ERR};
 
-    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     Screenshot();
-    cv::Mat before,after;
+    cv::Mat before, after;
     m_object.copyTo(before);
     cv::Rect click = m_rect;
+
     int x = 0;
     SendMessage(m_main, WM_SETFOCUS, 0, 0);
     QThread::msleep(15);
@@ -21,61 +23,69 @@ void Controller::click(ErrorList *result, int count, int delay) {
     QThread::msleep(15);
     SendMessage(m_game, WM_SETCURSOR, (WPARAM)m_game, MAKELPARAM(HTCLIENT, WM_LBUTTONDOWN));
     QThread::msleep(15);
-    do {
-        after.release();
+    PostMessage(m_game, WM_MOUSEMOVE, 0, MAKELPARAM(click.x + 5, click.y + 5));
+    QThread::msleep(30);
+
+    while(true) {
         PostMessage(m_game, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(click.x + 5, click.y + 5));
         QThread::msleep(delay);
         PostMessage(m_game, WM_LBUTTONUP, 0, MAKELPARAM(click.x + 5, click.y + 5));
-        QThread::msleep(100);
+        QThread::msleep(15);
+        SendMessage(m_game, WM_SETCURSOR, (WPARAM)m_game, MAKELPARAM(HTCLIENT, WM_MOUSEMOVE));
+        QThread::msleep(65);
+
         Screenshot();
         m_object.copyTo(after);
         compareObject(0, &after, &before, &l_result);
+
         if (!l_result) return;
-        QThread::msleep(delay);
-        x++;
-    } while (x < count);
-    //Если цикл вышел сюда, то значит что клики прошли а изображение не поменялось
-    observer.value.warning = m_Warning::FAIL_CLICK;
-    observer.comment = ("bot pos: " + QString::number(m_rect.x) + ";" + QString::number(m_rect.y) + "]");
-    return;
+        else if(++x > count) {
+            observer.value.warning = m_Warning::FAIL_CLICK;
+            observer.comment = ("click failed at: " + QString::number(click.x) + ";" + QString::number(click.y) + "]");
+            return;
+        }
+    }
 }
 
 void Controller::clickPosition(const cv::Rect &point, ErrorList *result, int count, int delay) {
     QCoreApplication::processEvents();
-
     ErrorObserver observer(result);
     connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
-    ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
+    ErrorList l_result = {m_Warning::NO_WARN, m_Error::NO_ERR};
 
     Screenshot();
-
-    cv::Mat before,after;
+    cv::Mat before, after;
     m_object.copyTo(before);
-
     int x = 0;
+
     SendMessage(m_main, WM_SETFOCUS, 0, 0);
     QThread::msleep(15);
     SendMessage(m_main, WM_MOUSEACTIVATE, (WPARAM)m_main, MAKELPARAM(HTCLIENT, WM_LBUTTONDOWN));
     QThread::msleep(15);
     SendMessage(m_game, WM_SETCURSOR, (WPARAM)m_game, MAKELPARAM(HTCLIENT, WM_LBUTTONDOWN));
     QThread::msleep(15);
-    do {
-        after.release();
+    PostMessage(m_game, WM_MOUSEMOVE, 0, MAKELPARAM(point.x + 5, point.y + 5));
+    QThread::msleep(30);
+
+    while(true) {
         PostMessage(m_game, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(point.x + 5, point.y + 5));
         QThread::msleep(delay);
         PostMessage(m_game, WM_LBUTTONUP, 0, MAKELPARAM(point.x + 5, point.y + 5));
-        QThread::msleep(100);
+        QThread::msleep(15);
+        SendMessage(m_game, WM_SETCURSOR, (WPARAM)m_game, MAKELPARAM(HTCLIENT, WM_MOUSEMOVE));
+        QThread::msleep(65);
+
         Screenshot();
         m_object.copyTo(after);
         compareObject(0, &after, &before, &l_result);
+
         if (!l_result) return;
-        QThread::msleep(delay);
-        x++;
-    } while (x < count);
-    //Если цикл вышел сюда, то значит что клики прошли а изображение не поменялось
-    observer.value.warning = m_Warning::FAIL_CLICK;
-    observer.comment = ("user pos: " + QString::number(m_rect.x) + ";" + QString::number(m_rect.y) + "]");
-    return;
+        else if(++x > count) {
+            observer.value.warning = m_Warning::FAIL_CLICK;
+            observer.comment = ("click failed at: " + QString::number(point.x) + ";" + QString::number(point.y) + "]");
+            return;
+        }
+    }
 }
 
 void Controller::clickSwipe(const cv::Rect &start, const cv::Rect &finish, ErrorList *result) {
@@ -141,11 +151,11 @@ void Controller::clickSwipe(const cv::Rect &start, const cv::Rect &finish, Error
     Screenshot();
     m_object.copyTo(after);
     compareObject(0, &after, &before, &l_result);
+
     if (!l_result) return;
     else {
         observer.value.warning = m_Warning::FAIL_CLICK;
         observer.comment = ("swipe start: " + QString::number(start.x) + ";" + QString::number(start.y) + "] swipe finish: " + QString::number(finish.x) + ";" + QString::number(finish.y) + "]");
         return;
     }
-
 }

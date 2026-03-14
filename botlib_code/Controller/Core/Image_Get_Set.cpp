@@ -6,6 +6,8 @@
 #include <QDir>
 #include <QImage>
 
+void Controller::imageLoader(ImageLibrary *library) { lib = library; }
+
 void Controller::saveImage(const QString &savePath, const cv::Mat &saveImage, ErrorList *result) {
     ErrorObserver observer(result);
     connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
@@ -74,14 +76,6 @@ void Controller::setMatObject(const QString &image, ErrorList *result) {
         m_object.release();
         lib->get(mainPath + "/" + image + ".png", m_object);
     }
-    //QString path = QDir::cleanPath(mainPath + "/" + sample + ".png");
-    // QImage image(path);
-    // if(image.isNull()){
-    //     observer.value.error = m_Error::WRONG_IMG_PATH;
-    //     observer.comment = "setSample->path: " + path;
-    //     return;
-    // }
-    // convertImage(image, &m_sample,result);
 }
 
 void Controller::setSample(const cv::Mat &sample, ErrorList *result) {
@@ -113,14 +107,6 @@ void Controller::setSample(const QString &sample, ErrorList *result) {
         m_sample.release();
         lib->get(mainPath + "/" + sample + ".png", m_sample);
     }
-    //QString path = QDir::cleanPath(mainPath + "/" + sample + ".png");
-    // QImage image(path);
-    // if(image.isNull()){
-    //     observer.value.error = m_Error::WRONG_IMG_PATH;
-    //     observer.comment = "setSample->path: " + path;
-    //     return;
-    // }
-    // convertImage(image, &m_sample,result);
 }
 
 void Controller::setMask(const cv::Mat &mask, ErrorList *result) {
@@ -151,15 +137,6 @@ void Controller::setMask(const QString &mask, ErrorList *result) {
         m_mask.release();
         lib->get(mainPath + "/" + mask + ".png", m_mask);
     }
-
-    // QString path = QDir::cleanPath(mainPath + "/" + mask + ".png");
-    // QImage image(path);
-    // if(image.isNull()){
-    //     observer.value.error = m_Error::WRONG_IMG_PATH;
-    //     observer.comment = "setMask->path: " + path;
-    //     return;
-    // }
-    // convertImage(image, &m_mask, result);
 }
 
 void Controller::getImageFromLibrary(const QString &path, cv::Mat &result) {

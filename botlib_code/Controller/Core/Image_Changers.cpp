@@ -4,43 +4,6 @@
 #include <QCoreApplication>
 #include <QImage>
 
-// void Controller::convertImage(const QImage &imageOne, cv::Mat *imageTwo, ErrorList *result) {
-//     QCoreApplication::processEvents();
-//     ErrorObserver observer(result);
-//     connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
-//     // Проверка входных данных
-//     if (imageOne.isNull()) {
-//         observer.value.error = m_Error::WRONG_IMG_PATH;
-//         observer.print = false;
-//         return;
-//     }
-//     // Проверка указателя
-//     if (!imageTwo) {
-//         observer.value.error = m_Error::EMPTY_IMG;
-//         observer.print = false;
-//         return;
-//     }
-//     // Определяем формат QImage и конвертируем в соответствующий cv::Mat
-//     cv::Mat cvImg;
-//     switch (imageOne.format()) {
-//     case QImage::Format_RGB32:
-//     case QImage::Format_ARGB32:
-//         cvImg = cv::Mat(imageOne.height(), imageOne.width(), CV_8UC4, (void*)imageOne.constBits(), imageOne.bytesPerLine());
-//         cvtColor(cvImg, cvImg, cv::COLOR_RGBA2RGB);
-//         break;
-//     case QImage::Format_Grayscale8:
-//         cvImg = cv::Mat(imageOne.height(), imageOne.width(), CV_8UC1, (void*)imageOne.bits(), imageOne.bytesPerLine());
-//         break;
-//     default:
-//         observer.value.warning = m_Warning::UNKNOWN;
-//         observer.comment = "unsupported format";
-//         return;
-//     }
-//     imageTwo->release();
-//     // Копируем результат
-//     cvImg.copyTo(*imageTwo);
-// }
-
 cv::Mat Controller::cutImage() { return m_object(m_rect); }
 
 void Controller::changeColor(const cv::Mat &before, cv::Mat *after, ErrorList *result, bool convert) {
@@ -52,8 +15,6 @@ void Controller::changeColor(const cv::Mat &before, cv::Mat *after, ErrorList *r
         observer.comment = "before";
         return;
     }
-
-    //imwrite("C:/Utilities/Coding/Photo/ocr/controller_change_color_before.png",before);
 
     // Делаем копию, чтобы не трогать оригинал
     cv::Mat temp = before.clone();
@@ -98,10 +59,7 @@ void Controller::changeColor(const cv::Mat &before, cv::Mat *after, ErrorList *r
     cv::bitwise_or(mask, mask4, mask);
 
     temp.setTo(white, mask);
-
     temp.copyTo(*after);
-
-    //imwrite("C:/Utilities/Coding/Photo/ocr/controller_change_color_after.png",*after);
 
     if (after->empty()) {
         observer.value.error = m_Error::EMPTY_IMG;
