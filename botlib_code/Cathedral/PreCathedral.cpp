@@ -15,11 +15,11 @@ void Cathedral::confirmSquad(ErrorList *result) {
     } while(!l_result);
     switch (settings->modeSquad) {
     case 0: {
-        controller->clickButton("squad/dark","button_best",&l_result,2);
+        controller->clickButton("squad/dark","button_best",&l_result);
         break;
     }
     case 1: {
-        controller->clickButton("squad/dark","button_previous",&l_result,2);
+        controller->clickButton("squad/dark","button_previous",&l_result);
         break;
     }
     case 2: {
@@ -31,23 +31,10 @@ void Cathedral::confirmSquad(ErrorList *result) {
         return;
     }
     }
-    controller->clickButton("squad/dark","button_start",&l_result,2);
+    controller->clickButton("squad/dark","button_start",&l_result);
     checkWarnings();
-    int x = 0;
-    do{
-        controller->compareSample("load","sample","compare",&l_result,true);
-        if(l_result) break;
-        else{
-            x++;
-            if(x == 100){
-                observer.value.error = m_Error::FAIL_INIT;
-                observer.comment = "sample after warning";
-                return;
-            }
-        }
-        QThread::msleep(1000);
-    }
-    while(!l_result);
+    QThread::msleep(1000);
+    controller->checkLoading();
 }
 
 void Cathedral::checkMain(ErrorList *result){
@@ -55,27 +42,19 @@ void Cathedral::checkMain(ErrorList *result){
     connect(&observer, &ErrorObserver::Logging, controller, &Controller::LocalLogging);
     ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     int x = 0;
-    while(x<15){
+    while(!l_result){
         controller->compareSample("load","sample","compare",&l_result,true);
         if(l_result){
             checkStage(&l_result);
-            if(currentStage == 0){
-                observer.value = l_result;
-                observer.print = false;
-            }
             return;
         }
         else {
             controller->compareSample("dark","sample","compare",&l_result,true);
             if(l_result) return;
-            else {
-                QThread::msleep(1000);
-                x++;
-            }
+            else if (++x > 15) controller->fixErrors();
+            else QThread::msleep(1000);
         }
     }
-    observer.value.warning = m_Warning::FAIL_PAGE;
-    observer.comment = "cathedral main";
     return;
 }
 
@@ -91,38 +70,35 @@ void Cathedral::checkSettings(ErrorList *result) {
     switch(settings->modeDifficult) {
     case 0:{
         controller->compareSample("dark","sample_insane","state_normal",&l_result,true);
-        if(!l_result) {
-            controller->click(&l_result);
-            if(!l_result){
-                observer.value = l_result;
-                observer.print = false;
-                return;
-            }
-        }
+        //experimental
+        controller->LocalLogging("try to find&click in normal mode");
+        controller->click(&l_result);
+        QThread::msleep(1000);
+        //
+        // if(!l_result) {
+
+        //     if(!l_result){
+        //         observer.value = l_result;
+        //         observer.print = false;
+        //         return;
+        //     }
+        // }
         break;
     }
     case 1:{
         controller->compareSample("dark","sample_insane","state_hard",&l_result,true);
-        if(!l_result) {
-            controller->click(&l_result);
-            if(!l_result){
-                observer.value = l_result;
-                observer.print = false;
-                return;
-            }
-        }
+        controller->LocalLogging("try to find&click in hard mode");
+        controller->click(&l_result);
+        QThread::msleep(1000);
+
         break;
     }
     case 2:{
         controller->compareSample("dark","sample_hard","state_insane",&l_result,true);
-        if(!l_result) {
-            controller->click(&l_result);
-            if(!l_result){
-                observer.value = l_result;
-                observer.print = false;
-                return;
-            }
-        }
+        controller->LocalLogging("try to find&click in insane mode");
+        controller->click(&l_result);
+        QThread::msleep(1000);
+
         break;
     }
     default:{
@@ -134,10 +110,12 @@ void Cathedral::checkSettings(ErrorList *result) {
     switch(settings->modeKey) {
     case 0:{
         controller->clickButton("dark","button_apples");
+        QThread::msleep(1000);
         break;
     }
     case 1:{
         controller->clickButton("dark","button_keys");
+        QThread::msleep(1000);
         break;
     }
     case 2://{пока что не работает}

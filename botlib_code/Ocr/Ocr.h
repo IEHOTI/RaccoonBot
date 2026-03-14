@@ -6,6 +6,8 @@
 #include <QObject>
 #include <mutex>
 
+struct ImageLibrary;
+
 class BOTLIB_EXPORT Ocr : public QObject {
     Q_OBJECT
 public:
@@ -38,12 +40,12 @@ public:
 
 public slots:
     void Recognize(const cv::Mat &img, int &num) const; //к нему сигнал void **(const Mat &img, int &num);
-    void Initialize();
+    void Initialize(ImageLibrary *lib);
 
 signals:
     void sendError(const QString &str);
 private:
-    void Train();
+    void Train(ImageLibrary *lib);
     void emitError(const QString &str) const;
 
     mutable std::mutex mKnearesMutex;

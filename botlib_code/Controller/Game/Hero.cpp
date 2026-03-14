@@ -8,29 +8,35 @@ void Controller::openHeroPage(ErrorList *result) {
     ErrorObserver observer(result);
     connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
     ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
-    clickButton("main","button_user",&l_result,3);
-    if(!l_result) NoPrintError(&observer,l_result);
+    do {
+        clickButton("main","button_user",&l_result,3);
+        if(!l_result) fixErrors();
+    }while (!l_result);
     int x = 0;
     do {
         compareSample("user","sample","compare",&l_result,true);
         if(!l_result) {
-            x++;
+            ++x;
             if(x == 10) {
-                observer.value.warning = m_Warning::FAIL_PAGE;
-                observer.comment = "openHeroPage->No user Page";
-                return;
+                fixErrors();
+                x = 0;
             }
             else QThread::msleep(1000);
         }
     } while(!l_result);
     clickButton("user","button_battles");
-    compareSample("user","sample_battles","compare_battles",&l_result,true);
-    if(!l_result) NoPrintError(&observer,l_result);
+
+    do {
+        compareSample("user","sample_battles","compare_battles",&l_result,true);
+        if(!l_result) fixErrors();
+    }while (!l_result);
 
     clickButton("user","button_hero");
     QThread::msleep(500);
-    compareSample("hero","sample","compare",&l_result,true);
-    if(!l_result) NoPrintError(&observer,l_result);
+    do{
+        compareSample("hero","sample","compare",&l_result,true);
+        if(!l_result) fixErrors();
+    }while (!l_result);
 }
 
 void Controller::setHeroSet(typeSet set, ErrorList *result){ // errorlist?
@@ -39,15 +45,15 @@ void Controller::setHeroSet(typeSet set, ErrorList *result){ // errorlist?
     connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
     ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
 
-    openHeroPage(&l_result);
-    if(!l_result) NoPrintError(&observer,l_result);
+    do{
+        openHeroPage(&l_result);
+        if(!l_result) fixErrors();
+    }while (!l_result);
 
-    openAnySets(&l_result);
-    if(!l_result) {
-        observer.value.warning = m_Warning::FAIL_PAGE;
-        observer.comment = "setHeroSet->openAnySets";
-        return;
-    }
+    do{
+        openAnySets(&l_result);
+        if(!l_result) fixErrors();
+    }while (!l_result);
 
     QString pagePath = "squad/main/unit";
     switch (set) {
@@ -95,8 +101,10 @@ void Controller::setHeroSet(typeSet set, ErrorList *result){ // errorlist?
     }
     }
 
-    compareSample("hero","sample_confirm_set","compare_confirm_set",&l_result,true);
-    if(!l_result) NoPrintError(&observer,l_result);
+    do{
+        compareSample("hero","sample_confirm_set","compare_confirm_set",&l_result,true);
+        if(!l_result) fixErrors();
+    }while (!l_result);
 
     clickButton("hero","button_confirm_set");
     clickEsc();
@@ -113,38 +121,34 @@ void Controller::setHeroRelics(ErrorList *result, const QList<QString> *relicsLi
         return;
     }
 
-    openHeroPage(&l_result);
-    if(!l_result) NoPrintError(&observer,l_result);
+    do{
+        openHeroPage(&l_result);
+        if(!l_result) fixErrors();
+    }while (!l_result);
 
-    openAnySets(&l_result);
-    if(!l_result) {
-        observer.value.warning = m_Warning::FAIL_PAGE;
-        observer.comment = "setHeroSet->openAnySets";
-        return;
-    }
+    do{
+        openAnySets(&l_result);
+        if(!l_result) fixErrors();
+    }while (!l_result);
 
-    compareSample("squad/main/unit","sample_set_3","state_unequip",&l_result,true);
-    if(!l_result){
-        observer.value.warning = m_Warning::FAIL_PAGE;
-        observer.comment = "setHeroRelics->not unequip";
-        return;
-    }
+    do{
+        compareSample("squad/main/unit","sample_set_3","state_unequip",&l_result,true);
+        if(!l_result) fixErrors();
+    }while (!l_result);
     click();
     clickEsc();
 
-    compareSample("hero","sample_empty","compare_empty",&l_result,true);
-    if(!l_result) {
-        observer.value.error = m_Error::FAIL_INIT;
-        observer.comment = "no empty relic";
-        return;
-    }
+    do{
+        compareSample("hero","sample_empty","compare_empty",&l_result,true);
+        if(!l_result) fixErrors();
+    }while (!l_result);
 
     QList<QString> temp = relicsList->toList();
 
     for(int count = 1; count < 9; count++) {
         Screenshot();
         setSample(getMatObject());
-        for(int i = 0, n = temp.size(); i < n;i++) {
+        for(int i = 0, n = temp.size(); i < n; ++i) {
             QString tempString = temp[i];
             setMatObject("hero/" + tempString);
             compareObject(0.02,nullptr,nullptr,&l_result);
@@ -152,16 +156,14 @@ void Controller::setHeroRelics(ErrorList *result, const QList<QString> *relicsLi
                 //нашел
                 click();
                 QThread::msleep(500);
-                compareSample("hero","sample_equip_relic","compare_equip_relic",&l_result,true);
-                if(!l_result) {
-                    observer.value.error = m_Error::FAIL_INIT;
-                    observer.comment = "fail set relic: " + tempString;
-                    return;
-                }
+                do {
+                    compareSample("hero","sample_equip_relic","compare_equip_relic",&l_result,true);
+                    if(!l_result) fixErrors();
+                }while (!l_result);
                 clickButton("hero","button_equip_relic");
                 temp.removeOne(tempString);
-                i--;
-                n--;
+                --i;
+                --n;
             }
         }
         clickSwipe({680,545,0,0},{680,330,0,0});

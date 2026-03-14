@@ -56,7 +56,7 @@ void Lighthouse::Start(ErrorList *result) {
         if(!l_result) NoPrintError(&observer,l_result);
         controller->checkMainPage(&l_result);
         if(!l_result){
-            controller->fixGameError(&l_result);
+            //controller->fixGameError(&l_result);
             if(!l_result) NoPrintError(&observer,l_result);
         }
         controller->clickButton("main","button_map");

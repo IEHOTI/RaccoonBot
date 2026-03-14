@@ -24,7 +24,6 @@ Controller::Controller(QObject *parent) : QObject(parent) {
 }
 
 Controller::~Controller() {
-    if(lib) delete lib;
     lib = nullptr;
 }
 
@@ -35,20 +34,14 @@ void Controller::Start(userProfile *user, ErrorList *result) {
     connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
     ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     try {
-        if(!lib) lib = new ImageLibrary("ImageLib.dll");
-
-        bool result = false;
-        lib->load(result);
-        if(!result) throw ImageException("Cannot load images");
-        // else {
-        //     QStringList allImages;
-        //     lib->getList(allImages);
-        //     qDebug() << allImages;
-        //     cv::Mat temp;
-        //     lib->get(":/pages/load/compare_open.png",temp);
-        //     if(temp.empty()) throw ImageException("empty img");
-        // }
-
+        if(!lib) {
+            Logging("Ожидание прогрева бота...");
+            while(!lib) {
+                LocalLogging("+++++++++Загрузка...++++++++++++++");
+                QThread::msleep(500);
+            }
+        }
+        Logging("Начало работы");
         if(!FindEmulator(user->emulator_name,&m_main,&m_game)) {
             observer.value.error = m_Error::FAIL_INIT;
             observer.comment = "find emulator";
@@ -75,69 +68,32 @@ void Controller::Start(userProfile *user, ErrorList *result) {
         do{
             checkPreMainPage();
             checkMainPage(&l_result);
-            if(!l_result){
-                fixGameError(&l_result);
-                if(!l_result){
-                    observer.value.error = m_Error::FAIL_INIT;
-                    observer.comment = "find mainPage";
-                    isWorking = false;
-                    return;
-                }
-                else l_result.warning = m_Warning::UNKNOWN;
-            }
+            if(!l_result) fixErrors();
         }while(!l_result);
         do{
             checkSettings(&l_result);
-            if(!l_result){
-                fixGameError(&l_result);
-                if(!l_result){
-                    observer.value.error = m_Error::FAIL_INIT;
-                    observer.comment = "find settings";
-                    isWorking = false;
-                    return;
-                }
-                else l_result.warning = m_Warning::UNKNOWN;
-            }
+            if(!l_result) fixErrors();
         }while(!l_result);
+
         userInitialize(user,&l_result);
-        if(!l_result) {
-            observer.value.error = m_Error::FAIL_INIT;
-            observer.print = false;
-            isWorking = false;
-            return;
-        }
-        refreshMainPage(&l_result);
-        if(!l_result) {
-            observer.value = l_result;
-            observer.print = false;
-            isWorking = false;
-            return;
-        }
+        if(!l_result) fixErrors();
+
         findBarracks(&l_result);
+        if(!l_result) {
+            refreshMainPage(&l_result);
+            if(!l_result) fixErrors();
+            findBarracks(&l_result);
+        }
+
         if(l_result) {
             entryBarracks(&l_result);
             if(l_result){
                 scanSquadCount(user,&l_result);
-                if(!l_result) {
-                    observer.value = l_result;
-                    observer.print = false;
-                    isWorking = false;
-                    return;
-                }
+                if(!l_result) fixErrors();
             }
-            else {
-                observer.value = l_result;
-                observer.print = false;
-                isWorking = false;
-                return;
-            }
+            else fixErrors();
         }
-        else {
-            observer.value = l_result;
-            observer.print = false;
-            isWorking = false;
-            return;
-        }
+        else fixErrors();
         isWorking = false;
         emit endStart();
     } catch (const StopException &e) {
@@ -156,6 +112,18 @@ void Controller::Start(userProfile *user, ErrorList *result) {
         observer.value.error = m_Error::EMPTY_IMG;
         observer.comment = e.what();
         Logging("Бот остановлен");
+        CleanUp();
+        isWorking = false;
+        QThread::currentThread()->quit();
+        return;
+    }
+    catch (const FixerException &e) {
+        LocalLogging(e.what());
+        if(e.refreshEmulator()) {
+            Logging("Перезагрузка эмулятора");
+            emit emulatorRefresh();
+        }
+        observer.comment = e.what();
         CleanUp();
         isWorking = false;
         QThread::currentThread()->quit();

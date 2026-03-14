@@ -22,7 +22,7 @@ class QTextEdit;
 class QWidget;
 
 struct BOTLIB_EXPORT userProfile {
-    int bot_ID = 0; // в GUI
+    int bot_ID = 0; // в GUI ?
     int user_ID; // account id
     int history_power;
     int count_units;
@@ -31,7 +31,7 @@ struct BOTLIB_EXPORT userProfile {
     QString emulator_name; // имя окна эмулятора
     typeSub subscribe;
     typeEmu emulatorType; // в GUI по идее
-    QTextEdit *logger; // = new в GUI делать
+    QTextEdit *logger; // = new в GUI делать, логгер-вкладка
 
     userProfile();
     userProfile(const userProfile &other);
@@ -42,7 +42,7 @@ struct BOTLIB_EXPORT userProfile {
 
     QString getSubscribeType() const;
 
-    void getInfo(QWidget *widget);
+    void getInfo(QWidget *widget, QString style = "");
 };
 
 

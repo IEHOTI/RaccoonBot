@@ -9,20 +9,12 @@ void Controller::clickButton(const QString &pagePath, const QString &buttonName,
     connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
     ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
 
-    //m_mask.release();
-    //convertImage(QImage((mainPath + "/" + pagePath + "/" + buttonName + ".png")), &m_mask,&l_result);
     setMask(pagePath + "/" + buttonName,&l_result);
-    if(!l_result){
-        observer.value = l_result;
-        observer.comment = "convert->mask";
-        return;
-    }
+    if(!l_result) NoPrintError(&observer, l_result);
+
     findObject(nullptr,&l_result);
-    if(!l_result){
-        observer.value = l_result;
-        observer.print = false;
-        return;
-    }
+    if(!l_result) NoPrintError(&observer, l_result);
+
     click(result,count,delay);
 }
 void Controller::clickMapButton(const QString &mapName, const QString &buttonName, ErrorList *result, int count, int delay) {
@@ -30,12 +22,11 @@ void Controller::clickMapButton(const QString &mapName, const QString &buttonNam
     connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
 
     ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
-    checkMap(&l_result);
-    if(!l_result){
-        observer.value = l_result;
-        observer.print = false;
-        return;
-    }
+    do {
+        checkMap(&l_result);
+        if(!l_result) fixErrors();
+    } while (!l_result);
+
     int x = 0;
     cv::Rect start = {690,290,0,0};
     cv::Rect finish = {100,290,0,0};
@@ -43,7 +34,7 @@ void Controller::clickMapButton(const QString &mapName, const QString &buttonNam
         compareSample("map",mapName,buttonName,&l_result,true);
         if(!l_result) {
             clickSwipe(start,finish);
-            x++;
+            ++x;
         }
         else break;
     }
@@ -53,7 +44,7 @@ void Controller::clickMapButton(const QString &mapName, const QString &buttonNam
             compareSample("map",mapName,buttonName,&l_result,true);
             if(!l_result) {
                 clickSwipe(finish,start);
-                x++;
+                ++x;
             }
             else break;
         }

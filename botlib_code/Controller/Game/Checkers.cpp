@@ -115,15 +115,13 @@ void Controller::checkMainPage(ErrorList *result) {
     connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
     ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     compareSample("main","sample","compare",&l_result,true);
-    if(!l_result){
-        emit errorLogging("Первая проверка провалена.");
-        compareSample("main","sample","compare_1",&l_result,true);
+    do{
         if(!l_result){
-            observer.value.error = m_Error::FAIL_INIT;
-            observer.comment = "fail 2x check main page";
-            return;
+            emit errorLogging("Первая проверка провалена.");
+            compareSample("main","sample","compare_1",&l_result,true);
+            if(!l_result) fixErrors();
         }
-    }
+    } while (!l_result);
 }
 
 void Controller::checkEvent(ErrorList *result) {
@@ -134,25 +132,19 @@ void Controller::checkEvent(ErrorList *result) {
     int x = 0;
     ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     setMask("event/compare",&l_result);
-    if(!l_result) {
-        observer.value = l_result;
-        return;
-    }
 
     //convertImage(QImage((mainPath + "/event/sample.png")), &m_object,&l_result);
     setMatObject("event/sample",&l_result);
-    if(!l_result) {
-        observer.value = l_result;
-        return;
-    }
+    if(!l_result) NoPrintError(&observer, l_result);
+
     findObject();
     cv::Mat find = cutImage();
     do {
         Screenshot();
-        compareObject(0.035,&find,&m_object,&l_result);
+        compareObject(0.037,&find,&m_object,&l_result);
         if(l_result) break;
         else {
-            x++;
+            ++x;
             QThread::msleep(500);
         }
     } while(x < 2);
@@ -169,66 +161,47 @@ void Controller::checkSettings(ErrorList *result) {
 
     ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     clickButton("main","button_settings",&l_result);
-    if(!l_result) {
-        observer.value = l_result;
-        observer.print = false;
-        return;
-    }
+    if(!l_result) NoPrintError(&observer, l_result);
+
     int x = 0;
     do {
         compareSample("settings","sample","compare",&l_result,true);
         if(l_result) break;
         else {
-            x++;
+            ++x;
             QThread::msleep(500);
         }
     } while(x < 10);
-    if(!l_result) {
-        observer.value = l_result;
-        observer.print = false;
-        return;
-    }
+    if(!l_result) NoPrintError(&observer, l_result);
+
     compareSample("settings","sample","state_fps",&l_result);
     if(!l_result) clickButton("settings","button_fps",&l_result);
-    if(!l_result) {
-        observer.value = l_result;
-        observer.print = false;
-        return;
-    }
+
+    if(!l_result) fixErrors();
+
     compareSample("settings","sample","state_lang",&l_result);
-    if(!l_result) {
+    while(!l_result) {
         clickButton("settings","button_lang",&l_result);
-        if(!l_result) {
-            observer.value = l_result;
-            observer.print = false;
-            return;
-        }
-        QThread::msleep(1000);
+        if(!l_result) fixErrors();
+    }
+    QThread::msleep(1000);
+    while(!l_result) {
         compareSample("settings","sample_change_lang","compare_change_lang",&l_result,true);
-        if(!l_result){
-            observer.value = l_result;
-            observer.print = false;
-            return;
-        }
+        if(!l_result) fixErrors();
+    }
+    while(!l_result) {
         clickButton("settings","button_en",&l_result);
-        if(!l_result) {
-            observer.value = l_result;
-            observer.print = false;
-            return;
-        }
+        if(!l_result) fixErrors();
+    }
+    while(!l_result) {
         compareSample("settings","sample_confirm","compare_confirm",&l_result,true);
-        if(!l_result){
-            observer.value = l_result;
-            observer.print = false;
-            return;
-        }
+        if(!l_result) fixErrors();
+    }
+    while(!l_result) {
         clickButton("settings","button_yes",&l_result);
-        if(!l_result) {
-            observer.value = l_result;
-            observer.print = false;
-            return;
-        }
-    } else clickEsc(nullptr,2);
+        if(!l_result) fixErrors();
+    }
+    clickEsc(nullptr,2);
 }
 
 void Controller::checkMap(ErrorList *result) {
@@ -236,15 +209,12 @@ void Controller::checkMap(ErrorList *result) {
     connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
     ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     int x = 0;
-    do {
+    while (true) {
         compareSample("map","sample","compare",&l_result,true);
         if(!l_result) {
-            x++;
-            QThread::msleep(1000);
+            if(++x > 15) fixErrors();
+            else QThread::msleep(1000);
         }
         else return;
-    } while (x < 15);
-    observer.value.warning = m_Warning::FAIL_CHECK;
-    observer.comment = "map";
-    return;
+    };
 }

@@ -22,7 +22,7 @@ public:
 signals:
     void Logging(const QString &msg);
 
-protected:
+public:
     std::wstring cmd;
     int instance;
 };

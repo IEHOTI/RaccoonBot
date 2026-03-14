@@ -8,33 +8,31 @@ void Controller::findBarracks(ErrorList *result) {
     ErrorObserver observer(result);
     connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
     ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
+    do {
     compareSample("squad/main","sample","compare",&l_result,true);
-    if(!l_result){
-        observer.value = l_result;
-        observer.comment = "not found barrack";
-        return;
-    }
+    if(!l_result) fixErrors();
+    } while(!l_result);
 }
 
 void Controller::entryBarracks(ErrorList *result) {
     ErrorObserver observer(result);
     connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
     ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
-    click();
-    QThread::msleep(500);
     int x = 0;
+    cv::Rect l_rect = getRect();
     do{
+        clickPosition(l_rect);
+        QThread::msleep(500);
         compareSample("squad/main","sample_info","compare_info",&l_result,true);
         if(!l_result){
             compareSample("squad/main","sample_info","compare_pals",&l_result);
             if(!l_result){
-                x++;
+                ++x;
                 if(x == 10) {
-                    observer.value.error = m_Error::FAIL_INIT;
-                    observer.comment = "2 stage of compare info";
-                    return;
+                    fixErrors();
+                    x = 0;
                 }
-                QThread::msleep(1000);
+                QThread::msleep(2000);
             }
             else clickButton("squad/main","button_info");
         } else click();
@@ -43,11 +41,10 @@ void Controller::entryBarracks(ErrorList *result) {
     do {
         compareSample("squad/main","sample_barrack","compare_barrack",&l_result,true);
         if(!l_result){
-            x++;
+            ++x;
             if(x == 50) {
-                observer.value.warning = m_Warning::FAIL_COMPARE;
-                observer.comment = "barrack";
-                return;
+                fixErrors();
+                x = 0;
             }
             else QThread::msleep(500);
         }
@@ -59,7 +56,8 @@ void Controller::scanSquadCount(userProfile *user, ErrorList *result) {
     connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
     ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
 
-    setMask("squad/main/count");
+    setMask("squad/main/count",&l_result);
+    if(!l_result) {NoPrintError(&observer, l_result);}
     findObject();
     cv::Mat temp;
     changeColor(cutImage(),&temp,&l_result/*,true*/);
@@ -68,6 +66,7 @@ void Controller::scanSquadCount(userProfile *user, ErrorList *result) {
         observer.print = false;
         return;
     }
+
     int number = 0;
     emit Recognize(temp,number);
     if(number < 2) {
@@ -101,11 +100,10 @@ void Controller::setUnitSet(int index, typeSet set, ErrorList *result) {
         if(!l_result) {
             clickPosition(cv::Rect(unitPos[index],yPos,0,0),&l_result,1);
             if(!l_result){
-                x++;
+                ++x;
                 if(x == 50) {
-                    observer.value.warning = m_Warning::FAIL_COMPARE;
-                    observer.comment = "unit sample";
-                    return;
+                    fixErrors();
+                    x = 0;
                 }
                 QThread::msleep(500);
             }
@@ -115,19 +113,6 @@ void Controller::setUnitSet(int index, typeSet set, ErrorList *result) {
     openAnySets(&l_result);
     if(!l_result) NoPrintError(&observer,l_result);
 
-    // do{
-    //     compareSample(pagePath,"sample_set","compare_set",&l_result,true);
-    //     if(!l_result) {
-    //         clickButton(pagePath,"button_set",nullptr,1);
-    //         x++;
-    //         if(x == 10){
-    //             observer.value.warning = m_Warning::FAIL_COMPARE;
-    //             observer.comment = "unit set sample";
-    //             return;
-    //         }
-    //         QThread::msleep(1000);
-    //     }
-    // } while(!l_result);
     x = 0;
     switch (set) {
     case typeSet::UNEQUIP : {
@@ -176,7 +161,7 @@ void Controller::setUnitSet(int index, typeSet set, ErrorList *result) {
     while(true){
         compareSample(pagePath,"sample_set","compare_set",&l_result,true);
         if(l_result) {
-            x++;
+            ++x;
             if(x == 5) {
                 clickEsc();
                 break;
@@ -188,11 +173,10 @@ void Controller::setUnitSet(int index, typeSet set, ErrorList *result) {
             do{
                 compareSample(pagePath,"sample_confirm","compare_confirm",&l_result,true);
                 if(!l_result) {
-                    x++;
+                    ++x;
                     if(x == 15){
-                        observer.value.warning = m_Warning::FAIL_COMPARE;
-                        observer.comment = "unit set confirm";
-                        return;
+                        fixErrors();
+                        x = 0;
                     }
                 }
                 QThread::msleep(1000);
@@ -205,7 +189,7 @@ void Controller::setUnitSet(int index, typeSet set, ErrorList *result) {
                     clickButton(pagePath,"button_yes");
                     x = 10;
                 } else{
-                    x++;
+                    ++x;
                     QThread::msleep(500);
                 }
             } while(x < 10);
@@ -213,14 +197,13 @@ void Controller::setUnitSet(int index, typeSet set, ErrorList *result) {
         }
     }
     x = 0;
-    do{
+    do {
         compareSample(pagePath,"sample","compare",&l_result,true);
         if(!l_result) {
-            x++;
+            ++x;
             if(x == 50) {
-                observer.value.warning = m_Warning::FAIL_COMPARE;
-                observer.comment = "unit sample after equip";
-                return;
+                fixErrors();
+                x = 0;
             }
             QThread::msleep(500);
         }

@@ -3,7 +3,6 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/ml/ml.hpp>
 #include "ImageLibrary/ImageLibrary.h"
-#include "CustomError/Exception.h"
 
 #include <QDir>
 #include <QFileInfoList>
@@ -19,25 +18,15 @@ Ocr::Ocr(QObject *parent): QObject(parent) {}
 
 Ocr::~Ocr() = default;
 
-void Ocr::Initialize() {
-    Train();
+void Ocr::Initialize(ImageLibrary *lib) {
+    Train(lib);
     mIsLoaded = true;
 }
 void Ocr::emitError(const QString &str) const {
     const_cast<Ocr*>(this)->sendError(str);
 }
-void Ocr::Train() {
+void Ocr::Train(ImageLibrary *lib) {
     std::array<std::vector<cv::Mat>, 10> glyphs;
-    ImageLibrary* lib;
-    try {
-        lib = new ImageLibrary("ImageLib.dll");
-        bool result = false;
-        lib->load(result);
-        if(!result) throw ImageException("Cannot load images");
-    } catch(ImageException &e){
-        emitError(e.what());
-        return;
-    }
     // Перебираем цифры 0–9
     for (int d = 0; d <= 9; ++d) {
         QString resourcePath = QString(":/numbers/%1.png").arg(d);
@@ -76,8 +65,6 @@ void Ocr::Train() {
         mKNearest->setDefaultK(1);
         if (!mKNearest->train(array_images, cv::ml::ROW_SAMPLE, array_chars)) emitError("Не удалось обучить модель.");
     }
-    delete lib;
-    lib = nullptr;
 }
 
 int Ocr::RecognizeDigit(const cv::Mat &img) const {

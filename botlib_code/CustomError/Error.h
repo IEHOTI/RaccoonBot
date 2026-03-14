@@ -13,6 +13,7 @@ enum class m_Error {
     //other
     STOP_TASK,
     PAUSE_TASK,
+    RELOAD_TASK
 };
 
 #endif // ERROR_H

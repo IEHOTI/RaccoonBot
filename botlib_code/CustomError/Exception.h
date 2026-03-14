@@ -26,4 +26,19 @@ private:
     std::string msg;
 };
 
+struct FixerException : public std::exception {
+    FixerException() : msg("Can not fix error"), flag(false) {}
+    FixerException(const std::string &message, bool shouldRefresh = false)
+        : msg(message), flag(shouldRefresh) {}
+
+    const char *what() const noexcept override { return msg.c_str(); }
+
+    bool refreshEmulator() const noexcept { return flag; }
+
+private:
+    std::string msg;
+    bool flag;
+};
+
+
 #endif // EXCEPTION_H

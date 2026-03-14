@@ -32,7 +32,7 @@ void Controller::click(ErrorList *result, int count, int delay) {
         PostMessage(m_game, WM_LBUTTONUP, 0, MAKELPARAM(click.x + 5, click.y + 5));
         QThread::msleep(15);
         SendMessage(m_game, WM_SETCURSOR, (WPARAM)m_game, MAKELPARAM(HTCLIENT, WM_MOUSEMOVE));
-        QThread::msleep(65);
+        QThread::msleep(30);//65
 
         Screenshot();
         m_object.copyTo(after);

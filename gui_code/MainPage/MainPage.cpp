@@ -11,6 +11,7 @@
 
 #include "Controller/Controller.h"
 #include "User/UserProfile.h"
+#include "ImageLibrary/ImageLibrary.h"
 #include "qdir.h"
 
 void MainWindow::createMainTab(QWidget *tab,int index) {

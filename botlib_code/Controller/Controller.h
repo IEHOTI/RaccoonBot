@@ -26,9 +26,8 @@ public:
     void CleanUp();
 
     // Core
-
+    void imageLoader(ImageLibrary *lib);
     /// \brief Image_Changers
-    //void convertImage(const QImage &imageOne, cv::Mat *imageTwo, ErrorList *result = nullptr);
     cv::Mat cutImage();
     void changeColor(const cv::Mat &before, cv::Mat *after, ErrorList *result = nullptr, bool convert = false);
 
@@ -54,8 +53,8 @@ public:
     void clickReturn(ErrorList *result = nullptr, int count = 2);
 
     /// \brief Mouse_click
-    void click(ErrorList *result = nullptr, int count = 2, int delay = 100);
-    void clickPosition(const cv::Rect &point, ErrorList *result = nullptr, int count = 2, int delay = 100);
+    void click(ErrorList *result = nullptr, int count = 10, int delay = 100);
+    void clickPosition(const cv::Rect &point, ErrorList *result = nullptr, int count = 10, int delay = 100);
     void clickSwipe(const cv::Rect &start,const cv::Rect &finish, ErrorList *result = nullptr);
 
     // Game
@@ -69,10 +68,13 @@ public:
     cv::Rect& getRect();
 
     /// \brief Fixers
-    void fixGameError(ErrorList *result = nullptr);
+    bool fixSimpleError();
+    void fixDifficultError();
+    void fixIncorrectImageError();
+    void fixErrors();
+
     void refreshMainPage(ErrorList *result = nullptr);
     void skipEvent();
-    void fixPopUpError(ErrorList *result = nullptr);
     void fixBattleSettings();
 
     /// \brief Checkers
@@ -102,8 +104,8 @@ public:
     void setUnitSet(int index, typeSet set = typeSet::NOT_TOUCH, ErrorList *result = nullptr);
 
     /// \brief Button_click
-    void clickButton(const QString &pagePath,const QString &buttonName, ErrorList *result = nullptr, int count = 2, int delay = 100);
-    void clickMapButton(const QString &pageName, const QString &buttonName, ErrorList *result = nullptr, int count = 2, int delay = 100); // pagename = sample or sample_right
+    void clickButton(const QString &pagePath,const QString &buttonName, ErrorList *result = nullptr, int count = 3, int delay = 100);
+    void clickMapButton(const QString &pageName, const QString &buttonName, ErrorList *result = nullptr, int count = 3, int delay = 100); // pagename = sample or sample_right
 
     /// \brief later
     void getGameError();
@@ -118,7 +120,7 @@ signals:
     void Recognize(const cv::Mat &object, int &number);
     void emulatorStart(ErrorList *result = nullptr);
     void emulatorStop(HWND *main);
-    void emulatorFix(HWND *main, HWND *game);
+    void emulatorRefresh(); // после этого сигнала отсылать "старт" из ГУИ после успешной перезагрузки эмулятора...
     void Logging(const QString &msg, const bool print = true);
     void errorLogging(const QString &msg);
     void endStart();

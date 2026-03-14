@@ -68,7 +68,7 @@ void Arena::Start(ErrorList *result) {
         }
         controller->checkMainPage(&l_result);
         if(!l_result){
-            controller->fixGameError(&l_result);
+            //controller->fixGameError(&l_result);
             if(!l_result){
                 observer.value = l_result;
                 observer.print = false;

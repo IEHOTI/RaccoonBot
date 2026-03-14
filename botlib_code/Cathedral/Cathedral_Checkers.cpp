@@ -11,16 +11,13 @@ void Cathedral::checkPower(const cv::Mat &object, ErrorList *result) {
     cv::Mat l_object;
     ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     controller->changeColor(object,&l_object,&l_result);
-    if(!l_result) {
-        observer.value = l_result;
-        observer.print = false;
-        return;
-    }
+    if(!l_result) NoPrintError(&observer,l_result);
     int power = 0;
     emit controller->Recognize(l_object,power);
-    if(power <= 0) {
+    if (power == 0) controller->clickButton("battle/dark","button_best",&l_result);
+    else if(power < 0) {
         observer.value.warning = m_Warning::FAIL_RECOGNIZE;
-        controller->clickButton("battle/dark","button_best",&l_result);
+        observer.comment = "power in battle point";
         return;
     }
     if(power > settings->history_power) {
@@ -39,7 +36,7 @@ void Cathedral::checkStage(ErrorList *result) {
     connect(&observer, &ErrorObserver::Logging, controller, &Controller::LocalLogging);
     ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     int x = 0;
-    while(x < 3) {
+    while(true) {
         controller->checkLoading();
 
         controller->compareSample("dark/waypoints","sample_complete","compare_complete",&l_result,true,0.01);
@@ -52,7 +49,7 @@ void Cathedral::checkStage(ErrorList *result) {
         }
 
         controller->Screenshot();
-        for(int i = 0; i < 3; i++) {
+        for(int i = 0; i < 3; ++i) {
             controller->compareSample("dark/waypoints","stage_" + QString::number(i+1),
                                       "compare_stage",&l_result,false,0.03);
             if(l_result) {
@@ -60,22 +57,21 @@ void Cathedral::checkStage(ErrorList *result) {
                 return;
             }
         }
-        x++;
+        if(++x > 3) controller->fixErrors();
+        else QThread::msleep(500);
     }
-    observer.value = l_result;
-    observer.comment = "Cathderal floor";
-    return;
 }
 
 void Cathedral::checkWarnings() {
     ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     int x = 0;
-    while(x < 6) {
+    QThread::msleep(250);
+    while(x < 2) {//6
         controller->compareSample("warnings/dark","sample_1","compare",&l_result,true,0.01);
         if(!l_result){
             controller->compareSample("warnings/dark","sample_2","compare",&l_result,false,0.01);
             if(!l_result) {
-                x++;
+                ++x;
                 QThread::msleep(200);
                 continue;
             }
@@ -89,41 +85,34 @@ void Cathedral::checkEndStage(ErrorList *result){
     ErrorObserver observer(result);
     connect(&observer, &ErrorObserver::Logging, controller, &Controller::LocalLogging);
     ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
-    controller->compareSample("dark/waypoints","sample_next","state_next",&l_result,true);
-    if(l_result){
-        controller->clickButton("dark/waypoints","button_next",&l_result);
-        if(!l_result){
+    do {
+        controller->compareSample("dark/waypoints","sample_next","state_next",&l_result,true);
+        if(l_result){
+            controller->clickButton("dark/waypoints","button_next",&l_result);
+            if(!l_result) NoPrintError(&observer,l_result);
+
+            checkWarnings();
+            do {
+                controller->compareSample("load","sample","compare",&l_result,true);
+                QThread::msleep(250);
+            }
+            while(!l_result);
+            controller->checkLoading();
+            l_result.warning = m_Warning::UNKNOWN; //???
             observer.value = l_result;
-            observer.print = false;
             return;
         }
-        checkWarnings();
-        //change on checkloading by controller ??
-        do {
-            controller->compareSample("load","sample","compare",&l_result,true);
-            QThread::msleep(250);
-        }
-        while(!l_result);
-        controller->checkLoading();
-        l_result.warning = m_Warning::UNKNOWN;
-        observer.value = l_result;
-        return;
-    }
-    controller->compareSample("dark/waypoints","sample_end","state_end",&l_result);
-    if(l_result) {
-        controller->clickButton("dark/waypoints","button_end",&l_result);
-        if(!l_result){
-            observer.value = l_result;
-            observer.print = false;
+        controller->compareSample("dark/waypoints","sample_end","state_end",&l_result);
+        if(l_result) {
+            controller->clickButton("dark/waypoints","button_end",&l_result);
+            if(!l_result) NoPrintError(&observer,l_result);
+
+            checkWarnings();
+            currentStage = 4;
             return;
         }
-        checkWarnings();
-        currentStage = 4;
-        return;
-    }
-    observer.value = l_result;
-    observer.print = "No conditions to end stage";
-    return;
+        else controller->fixErrors();
+    } while (!l_result);
 }
 
 void Cathedral::checkWaypoints(int &type, ErrorList *result) {
@@ -132,12 +121,12 @@ void Cathedral::checkWaypoints(int &type, ErrorList *result) {
     ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     int x = 0;
     while (x < 10){
-        controller->compareSample("battle/dark","sample","compare",&l_result,true); // для баттла 0.04? вроде как 0.006 хватает
+        controller->compareSample("battle/dark","sample","compare",&l_result,true);
         if(l_result) {
             type = 4;
             return;
         }
-        for(int i = 0; i < 4; i++){
+        for(int i = 0; i < 4; ++i){
             controller->compareSample("dark/waypoints/" + nameWaypoints.at(i),"sample","compare",&l_result); // 0.065??
             if(l_result){
                 type = i;
@@ -145,7 +134,7 @@ void Cathedral::checkWaypoints(int &type, ErrorList *result) {
             }
         }
         QThread::msleep(200);
-        x++;
+        ++x;
     }
     observer.value = l_result;
     observer.comment = "check waypoint";

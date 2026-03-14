@@ -11,6 +11,7 @@
 struct GeneralData;
 struct userProfile;
 struct ErrorList;
+class ImageLibrary;
 class InformationPanel;
 
 class MainWindow : public QMainWindow
@@ -109,6 +110,7 @@ private:
     QList<QTextEdit*> listErrorLogs;
     QHash<QString,int> hashTask;
     QSharedPointer<GeneralData> tempData;
+    ImageLibrary *lib;
 };
 
 

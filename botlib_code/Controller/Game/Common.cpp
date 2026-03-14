@@ -13,12 +13,11 @@ void Controller::openAnySets(ErrorList *result) {
         if(!l_result) {
             compareSample(pagePath,"sample","button_set",&l_result);
             if(!l_result) {
-                x++;
+                ++x;
                 QThread::msleep(1000);
-                if(x == 10){
-                    observer.value.warning = m_Warning::FAIL_COMPARE;
-                    observer.comment = "setSomeSets->buttonSet";
-                    return;
+                if(x == 10) {
+                    fixErrors();
+                    x = 0;
                 }
             }
             else click(&l_result,1);

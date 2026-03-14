@@ -73,12 +73,12 @@ QString userProfile::getSubscribeType() const {
     }
 }
 
-void userProfile::getInfo(QWidget *widget) {
+void userProfile::getInfo(QWidget *widget, QString style) {
     // предполагается, что виджет уже чистый пришёл
     QHBoxLayout *generalLayout = new QHBoxLayout(widget);
     QWidget *leftInfo = new QWidget(widget);
     QWidget *rightInfo = new QWidget(widget);
-    if(user_ID < 1 ){
+    if(user_ID < 1){
         /////
         QVBoxLayout *leftLayout = new QVBoxLayout(leftInfo);
         QLabel *emulatorLabel = new QLabel("Эмулятор",leftInfo);
@@ -122,14 +122,17 @@ void userProfile::getInfo(QWidget *widget) {
         QLabel *emulatorLabel = new QLabel("Эмулятор",leftInfo);
         leftLayout->addWidget(emulatorLabel);
         QLabel *emulatorLabel1 = new QLabel(getEmulatorType() + " : " + emulator_name,leftInfo);
+        emulatorLabel1->setStyleSheet(style);
         leftLayout->addWidget(emulatorLabel1);
         QLabel *accountLabel = new QLabel("Игровой ID аккаунта",leftInfo);
         leftLayout->addWidget(accountLabel);
         QLabel *accountLabel1 = new QLabel(QString::number(user_ID),leftInfo);
+        accountLabel1->setStyleSheet(style);
         leftLayout->addWidget(accountLabel1);
         QLabel *subscribeLabel = new QLabel("Тип подписки",leftInfo);
         leftLayout->addWidget(subscribeLabel);
         QLabel *subscribeLabel1 = new QLabel(getSubscribeType(), leftInfo);
+        subscribeLabel1->setStyleSheet(style);
         leftLayout->addWidget(subscribeLabel1);
         /////
 
@@ -137,10 +140,12 @@ void userProfile::getInfo(QWidget *widget) {
         QLabel *HPLabel = new QLabel("Историческая мощь",rightInfo);
         rightLayout->addWidget(HPLabel);
         QLabel *HPLabel1 = new QLabel(QString::number(history_power),rightInfo);
+        HPLabel1->setStyleSheet(style);
         rightLayout->addWidget(HPLabel1);
         QLabel *countLabel = new QLabel("Максимум бойцов в казарме",rightInfo);
         rightLayout->addWidget(countLabel);
         QLabel *countLabel1 = new QLabel(QString::number(count_units),rightInfo);
+        countLabel1->setStyleSheet(style);
         rightLayout->addWidget(countLabel1);
         QWidget *tempWidget = new QWidget(rightInfo);
         QGridLayout *premADSLayout = new QGridLayout(tempWidget);
@@ -154,8 +159,10 @@ void userProfile::getInfo(QWidget *widget) {
         if(state_ads) adsChecker = "Присутствует";
         else adsChecker = "Отсутствует";
         QLabel *premCheckLabel = new QLabel(premChecker,rightInfo);
+        premCheckLabel->setStyleSheet(style);
         premADSLayout->addWidget(premCheckLabel,1,1,Qt::AlignCenter);
         QLabel *adsCheckLabel = new QLabel(adsChecker,rightInfo);
+        adsCheckLabel->setStyleSheet(style);
         premADSLayout->addWidget(adsCheckLabel,1,0,Qt::AlignCenter);
         rightLayout->addWidget(tempWidget);
     }

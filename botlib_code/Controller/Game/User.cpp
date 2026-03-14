@@ -11,38 +11,31 @@ void Controller::userInitialize(userProfile *user, ErrorList *result) {
     connect(&observer, &ErrorObserver::Logging, this, &Controller::LocalLogging);
 
     ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
-    clickButton("main","button_user",&l_result,3);
-    if(!l_result) {
-        observer.value = l_result;
-        observer.print = false;
-        return;
-    }
+    do {
+        clickButton("main","button_user",&l_result);
+        if(!l_result) fixErrors();
+    }while (!l_result);
+
     int x = 0;
     do {
         compareSample("user","sample","compare",&l_result,true);
         if(!l_result) {
-            x++;
+            ++x;
             QThread::msleep(1000);
         }
-        else break;
+        else if(x == 10) {
+            fixErrors();
+            x = 0;
+        }
     } while(x < 10);
-    if(!l_result) {
-        observer.value.error = m_Error::FAIL_INIT;
-        observer.comment = "dont open user profile";
-        return;
-    }
     setMask("user/user_id",&l_result);
-    if(!l_result) {
-        observer.value = l_result;
-        observer.print = false;
-        return;
-    }
-    findObject(nullptr,&l_result);
-    if(!l_result) {
-        observer.value = l_result;
-        observer.print = false;
-        return;
-    }
+    if(!l_result) NoPrintError(&observer,l_result);
+
+    do {
+        findObject(nullptr,&l_result);
+        if(!l_result) fixErrors();
+    }while (!l_result);
+
     emit Recognize(cutImage(),user->user_ID);
     if(user->user_ID <= 0) {
         observer.value.error = m_Error::FAIL_INIT;
@@ -54,17 +47,13 @@ void Controller::userInitialize(userProfile *user, ErrorList *result) {
 
     //////
     setMask("user/user_power",&l_result);
-    if(!l_result) {
-        observer.value = l_result;
-        observer.print = false;
-        return;
-    }
-    findObject(nullptr,&l_result);
-    if(!l_result) {
-        observer.value = l_result;
-        observer.print = false;
-        return;
-    }
+    if(!l_result) NoPrintError(&observer,l_result);
+
+    do{
+        findObject(nullptr,&l_result);
+        if(!l_result) fixErrors();
+    }while (!l_result);
+
     emit Recognize(cutImage(),user->history_power);
     if(user->history_power <= 0) {
         observer.value.error = m_Error::FAIL_INIT;

@@ -55,47 +55,25 @@ void Cathedral::Start(ErrorList *result) {
     ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     try {
         controller->checkMainPage(&l_result);
-        if(!l_result){
-            controller->fixGameError(&l_result);
-            if(!l_result){
-                observer.value = l_result;
-                observer.print = false;
-                return;
-            }
-        }
         controller->clickButton("main","button_map");
+
         controller->checkMap(&l_result);
-        if(!l_result){
-            observer.value = l_result;
-            observer.print = false;
-            return;
-        }
+        if(!l_result) NoPrintError(&observer,l_result);
+
         controller->clickMapButton("sample","button_dark",&l_result);
-        if(!l_result){
-            observer.value = l_result;
-            observer.print = false;
-            return;
-        }
+
         int k = 0;
         stop_flag = false;
         while(!stop_flag) {
             currentStage = 0;
             checkMain(&l_result);
-            if(!l_result){
-                observer.value = l_result;
-                observer.print = "check_main";
-                return;
-            }
+
             if(currentStage == 0) {
                 checkSettings(&l_result);
+
                 if(l_result) {
                     controller->clickButton("dark","button_start");
                     confirmSquad(&l_result);
-                    if(!l_result){
-                        observer.value = l_result;
-                        observer.print = false;
-                        return;
-                    }
                 }
                 else {
                     observer.value = l_result;
@@ -103,17 +81,22 @@ void Cathedral::Start(ErrorList *result) {
                     emit controller->Logging("Задание прервано. Ошибка в настройках");
                     return;
                 }
+
                 checkStage(&l_result);
-                if(!l_result){
-                    observer.value = l_result;
-                    observer.print = false;
-                    return;
-                }
+                if(!l_result) NoPrintError(&observer, l_result);
             }
             if(settings->fullGamePass) fullGamePass(&l_result);
             else bossGamePass(&l_result);
-            do controller->compareSample("dark","sample_end","compare_end",&l_result,true);
+            int x = 0;
+            do {
+                controller->compareSample("dark","sample_end","compare_end",&l_result,true);
+                if(!l_result) {
+                    if(++x > 15) controller->fixErrors();
+                    else QThread::msleep(500);
+                }
+            }
             while(!l_result);
+
             do {
                 controller->compareSample("load","sample","compare",&l_result,true);
                 if(!l_result) {
@@ -121,6 +104,7 @@ void Cathedral::Start(ErrorList *result) {
                     QThread::msleep(200);
                 }
             } while(!l_result);
+
             controller->checkLoading();
             QThread::msleep(750);
             controller->checkEvent(&l_result);
@@ -132,11 +116,6 @@ void Cathedral::Start(ErrorList *result) {
         controller->checkMainPage(&l_result);
         if(!l_result){
             controller->checkMap(&l_result);
-            if(!l_result) {
-                observer.value = l_result;
-                observer.print = false;
-                return;
-            }
             controller->clickButton("map","button_close");
         }
     } catch (const StopException &e) {
@@ -144,9 +123,15 @@ void Cathedral::Start(ErrorList *result) {
         observer.comment = e.what();
         QThread::currentThread()->quit();
         return;
-    } catch (const PauseException &e){
+    } catch (const PauseException &e) {
         observer.value.error = m_Error::PAUSE_TASK;
         observer.comment = e.what();
+        return;
+    } catch (const FixerException &e) {
+        if(e.refreshEmulator()) emit controller->emulatorRefresh();
+        else observer.value.error = m_Error::RELOAD_TASK;
+        observer.comment = e.what();
+        QThread::currentThread()->quit();
         return;
     }
 }

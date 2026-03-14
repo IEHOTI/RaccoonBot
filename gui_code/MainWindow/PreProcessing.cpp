@@ -5,23 +5,40 @@
 
 #include <QThread>
 #include <QMenuBar>
+#include <QFuture>
+#include <QFutureWatcher>
+#include <QtConcurrent/QtConcurrent>
 
+#include "ImageLibrary/ImageLibrary.h"
 #include "Controller/Controller.h"
 #include "User/UserProfile.h"
 #include "Ocr/Ocr.h"
 
 
 void MainWindow::preProcessingData() {
+    lib = new ImageLibrary("ImageLib.dll");
     //в будущем загрузка сохраненных вкладок и прочего, пока что всегда новое
     tempData = QSharedPointer<GeneralData>::create();
 
     Controller *controller = new Controller(tempData.data());
     QTextEdit *errorLog = new QTextEdit();
     Ocr *ocr = new Ocr(tempData.data());
-    ocr->Initialize();
     userProfile *user = new userProfile();
     QThread *thread = new QThread(this);
     thread->start();
+
+    QFuture<bool> loadLibrary = QtConcurrent::run([this](){
+        bool result = false;
+        lib->load(result);
+        return result;
+    });
+    QFutureWatcher<bool>* watcherLoader = new QFutureWatcher<bool>();
+    watcherLoader->setFuture(loadLibrary);
+    connect(watcherLoader, &QFutureWatcher<bool>::finished, this, [watcherLoader,ocr,controller,this]() {
+        ocr->Initialize(lib);
+        controller->imageLoader(lib);
+        watcherLoader->deleteLater();
+    });
 
     QFont logFont;
     logFont.setFamily("Consolas");
@@ -43,7 +60,6 @@ void MainWindow::preProcessingData() {
     listData.append(tempData);
     botThreads.append(thread);
     listErrorLogs.append(errorLog);
-    //connect(controller,&Controller::errorLogging,errorLog,&QTextEdit::append,Qt::QueuedConnection);
     connect(controller, &Controller::errorLogging, errorLog, [=](const QString &text) {
         errorLog->append(text);
         QStringList lines = errorLog->toPlainText().split("\n");
