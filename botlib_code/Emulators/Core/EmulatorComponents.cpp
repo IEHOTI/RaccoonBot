@@ -10,7 +10,6 @@
 #pragma comment(lib, "wbemuuid.lib")
 
 std::wstring GetCommandLineForHWND(HWND hwnd) {
-
     DWORD processID;
     GetWindowThreadProcessId(hwnd, &processID);
 

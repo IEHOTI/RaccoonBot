@@ -92,8 +92,10 @@ void Cathedral::checkEndStage(ErrorList *result){
             if(!l_result) NoPrintError(&observer,l_result);
 
             checkWarnings();
+            int x = 0;
             do {
                 controller->compareSample("load","sample","compare",&l_result,true);
+                if(++x > 120) controller->fixErrors();
                 QThread::msleep(250);
             }
             while(!l_result);
@@ -144,9 +146,12 @@ void Cathedral::checkWaypoints(int &type, ErrorList *result) {
 
 void Cathedral::checkBattleResult(bool *battle){
     ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
+    int x = 0;
     do {
         controller->compareSample("battle/end","sample","compare",&l_result,true,0.025);
-        QThread::msleep(250);
+        QThread::msleep(150);
+        if(l_result) break;
+        else if(++x > 200) controller->fixErrors();
     }
     while (!l_result);
     do {

@@ -18,11 +18,4 @@ public:
 signals:
     void Logging(const QString &msg);
 };
-
-inline void NoPrintError(ErrorObserver *observer, ErrorList result) {
-    observer->value = result;
-    observer->print = false;
-    return;
-}
-
 #endif // ERROROBSERVER_H

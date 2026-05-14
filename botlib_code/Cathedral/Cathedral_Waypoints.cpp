@@ -34,6 +34,9 @@ void Cathedral::findWaypoint(ErrorList *result) {
         ++x;
     }
     checkEndStage(&l_result);
+    observer.value = l_result;
+    observer.print = false;
+    return;
 }
 
 
@@ -89,15 +92,25 @@ void Cathedral::attackWaypoints(int type, ErrorList *result, bool *battle) {
         else{
             //тут пока что пусто, лень
         }
-        do {
+        x = 0;
+        while(x < 11){
             controller->compareSample("dark/waypoints/blessing","sample","compare",&l_result,true);
             if(l_result) {
                 controller->clickButton("dark/waypoints/blessing","button_" + QString::number(1 + rand() % 3));
-                QThread::msleep(50);
                 controller->clickButton("dark/waypoints/blessing","button_confirm");
                 QThread::msleep(500);
+                controller->compareSample("dark/waypoints/blessing","sample","compare",&l_result,true);
+                if(!l_result) break;
             }
-        } while(l_result);
+            else {
+                QThread::msleep(500);
+                if(++x % 5 == 0) controller->fixErrors();
+            }
+        }
+        if(x == 10){
+            observer.value = l_result;
+            observer.comment = "blessing fail, not loading, cannot fix";
+        }
         return;
     }
     default:{

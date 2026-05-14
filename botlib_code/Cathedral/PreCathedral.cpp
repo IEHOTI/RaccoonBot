@@ -9,9 +9,13 @@ void Cathedral::confirmSquad(ErrorList *result) {
     ErrorObserver observer(result);
     connect(&observer, &ErrorObserver::Logging, controller, &Controller::LocalLogging);
     ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
+    int x = 0;
     do {
         controller->compareSample("squad/dark","sample","compare",&l_result,true);
-        if(!l_result) QThread::msleep(500);
+        if(!l_result) {
+            QThread::msleep(500);
+            if(++x > 5) controller->fixErrors();
+        }
     } while(!l_result);
     switch (settings->modeSquad) {
     case 0: {
@@ -42,7 +46,7 @@ void Cathedral::checkMain(ErrorList *result){
     connect(&observer, &ErrorObserver::Logging, controller, &Controller::LocalLogging);
     ErrorList l_result = {m_Warning::NO_WARN,m_Error::NO_ERR};
     int x = 0;
-    while(!l_result){
+    do {
         controller->compareSample("load","sample","compare",&l_result,true);
         if(l_result){
             checkStage(&l_result);
@@ -54,7 +58,7 @@ void Cathedral::checkMain(ErrorList *result){
             else if (++x > 15) controller->fixErrors();
             else QThread::msleep(1000);
         }
-    }
+    } while(!l_result);
     return;
 }
 

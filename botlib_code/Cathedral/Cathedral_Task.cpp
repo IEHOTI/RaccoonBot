@@ -87,6 +87,7 @@ void Cathedral::Start(ErrorList *result) {
             }
             if(settings->fullGamePass) fullGamePass(&l_result);
             else bossGamePass(&l_result);
+            controller->Logging("Собор завершён");
             int x = 0;
             do {
                 controller->compareSample("dark","sample_end","compare_end",&l_result,true);
@@ -128,7 +129,7 @@ void Cathedral::Start(ErrorList *result) {
         observer.comment = e.what();
         return;
     } catch (const FixerException &e) {
-        if(e.refreshEmulator()) emit controller->emulatorRefresh();
+        if(e.refreshEmulator()) /*emit controller->emulatorRefresh();*/;
         else observer.value.error = m_Error::RELOAD_TASK;
         observer.comment = e.what();
         QThread::currentThread()->quit();

@@ -33,6 +33,16 @@ func (db *myDataBase) checkDB() {
 
 	db.pingDB()
 
+	// Создаём B-tree индекс на поле id для ускорения поиска пользователей.
+	// B-tree структура сбалансированного дерева ускоряет SELECT, но замедляет INSERT/DELETE.
+	// Это приемлемо: поиск происходит при каждом запуске бота, а вставка — значительно реже.
+	_, db.err = db.database.Exec(`
+		CREATE INDEX IF NOT EXISTS idx_test_id ON test USING btree (id)
+	`)
+	if db.err != nil {
+		log.Printf("Предупреждение: не удалось создать индекс: %v\n", db.err)
+	}
+
 	log.Printf("successfully connected to database")
 }
 
